@@ -23,14 +23,12 @@ export async function middleware(request: NextRequest) {
 
   const { data: { user } } = await supabase.auth.getUser()
 
-  // הגנה על הדשבורד
-  if (request.nextUrl.pathname.startsWith('/dashboard')) {
-    if (!user) {
-      return NextResponse.redirect(new URL('/login', request.url))
-    }
+  // הגנה על הדשבורד: אם אין משתמש - שלח ללוגין
+  if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
+    return NextResponse.redirect(new URL('/login', request.url))
   }
 
-  // אם המשתמש מחובר ומנסה להגיע לדף הבית או לוגין - שלח אותו ישר פנימה
+  // אם המשתמש מחובר ומנסה להגיע לדף הבית או לוגין - שלח לדשבורד
   if (user && (request.nextUrl.pathname === '/' || request.nextUrl.pathname === '/login')) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }

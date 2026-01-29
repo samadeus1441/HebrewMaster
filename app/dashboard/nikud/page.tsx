@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
+import { useLanguage } from '@/app/context/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -20,6 +22,7 @@ interface Nikud {
 }
 
 export default function NikudPage() {
+  const { t } = useLanguage();
   const [nikudList, setNikudList] = useState<Nikud[]>([]);
   const [selectedNikud, setSelectedNikud] = useState<Nikud | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,27 +78,32 @@ export default function NikudPage() {
   };
 
   if (loading) {
-    return <div className="flex h-screen items-center justify-center">
-      <div className="text-xl font-bold">Loading vowel points...</div>
-    </div>;
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <LanguageSwitcher />
+        <div className="text-xl font-bold">{t('nikud.loading')}</div>
+      </div>
+    );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-6">
+      <LanguageSwitcher />
+      
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <Link href="/dashboard" className="text-blue-600 hover:text-blue-800 mb-4 inline-block">
-            ← Back to Dashboard
+            ← {t('nikud.backToDashboard')}
           </Link>
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Nikud - Vowel Points</h1>
-          <p className="text-lg text-gray-600">Master the 10 essential vowel markings</p>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">{t('nikud.title')}</h1>
+          <p className="text-lg text-gray-600">{t('nikud.subtitle')}</p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Nikud Grid */}
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">10 Vowel Points</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mb-6">{t('nikud.vowelPoints')}</h2>
             <div className="grid grid-cols-2 gap-4">
               {nikudList.map((nikud) => (
                 <button
@@ -124,31 +132,31 @@ export default function NikudPage() {
 
             {/* Category Legend */}
             <div className="mt-8 bg-white rounded-2xl p-6 shadow-lg">
-              <h3 className="font-bold text-gray-800 mb-4">Sound Categories</h3>
+              <h3 className="font-bold text-gray-800 mb-4">{t('nikud.soundCategories')}</h3>
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-gradient-to-br from-red-400 to-red-600"></div>
-                  <span>A sounds</span>
+                  <span>{t('nikud.aSounds')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-gradient-to-br from-orange-400 to-orange-600"></div>
-                  <span>E sounds</span>
+                  <span>{t('nikud.eSounds')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-gradient-to-br from-yellow-400 to-yellow-600"></div>
-                  <span>I sounds</span>
+                  <span>{t('nikud.iSounds')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-gradient-to-br from-green-400 to-green-600"></div>
-                  <span>O sounds</span>
+                  <span>{t('nikud.oSounds')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-400 to-blue-600"></div>
-                  <span>U sounds</span>
+                  <span>{t('nikud.uSounds')}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-4 h-4 rounded-full bg-gradient-to-br from-purple-400 to-purple-600"></div>
-                  <span>Reduced</span>
+                  <span>{t('nikud.reduced')}</span>
                 </div>
               </div>
             </div>
@@ -171,7 +179,7 @@ export default function NikudPage() {
                       <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
                       <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
                     </svg>
-                    Play Sound
+                    {t('nikud.playSound')}
                   </button>
                 </div>
 
@@ -179,33 +187,35 @@ export default function NikudPage() {
                 <div className="space-y-6">
                   <div>
                     <h2 className="text-4xl font-bold text-gray-900 mb-2">{selectedNikud.name_en}</h2>
-                    <p className="text-sm text-gray-500 uppercase tracking-wide">Vowel Point #{selectedNikud.teaching_order}</p>
+                    <p className="text-sm text-gray-500 uppercase tracking-wide">
+                      {t('nikud.vowelPointNumber')} #{selectedNikud.teaching_order}
+                    </p>
                   </div>
 
                   <div className="bg-purple-50 rounded-xl p-4">
                     <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                      <span>🔊</span> Sound
+                      <span>🔊</span> {t('nikud.sound')}
                     </h3>
                     <p className="text-lg text-gray-700">{selectedNikud.sound_en}</p>
                   </div>
 
                   <div className="bg-blue-50 rounded-xl p-4">
                     <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                      <span>📝</span> Symbol
+                      <span>📝</span> {t('nikud.symbol')}
                     </h3>
                     <p className="text-gray-700">
-                      This is the <span className="font-mono text-2xl">{selectedNikud.symbol}</span> mark
+                      {t('nikud.thisMark')} <span className="font-mono text-2xl">{selectedNikud.symbol}</span>
                     </p>
                     <p className="text-sm text-gray-600 mt-2">
-                      Written {selectedNikud.category === 'o' || selectedNikud.category === 'u' ? 'with' : 'under'} the letter
+                      {t('nikud.writtenPosition')} {selectedNikud.category === 'o' || selectedNikud.category === 'u' ? t('nikud.with') : t('nikud.under')} {t('nikud.theLetter')}
                     </p>
                   </div>
 
                   <div className="bg-green-50 rounded-xl p-4">
                     <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                      <span>🎯</span> Category
+                      <span>🎯</span> {t('nikud.category')}
                     </h3>
-                    <p className="text-gray-700 capitalize">{selectedNikud.category} sound family</p>
+                    <p className="text-gray-700 capitalize">{selectedNikud.category} {t('nikud.soundFamily')}</p>
                   </div>
                 </div>
               </div>
@@ -218,11 +228,9 @@ export default function NikudPage() {
           <div className="flex items-start gap-4">
             <div className="text-5xl">💡</div>
             <div>
-              <h3 className="text-2xl font-bold text-gray-900 mb-2">Learning Tip</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">{t('nikud.learningTip')}</h3>
               <p className="text-gray-700 leading-relaxed">
-                Hebrew vowels are not letters - they're dots and lines added to consonants. 
-                Modern Hebrew texts often skip them (unpointed text), but they're essential for learning. 
-                Master these 10 points and you'll be able to read anything!
+                {t('nikud.tipText')}
               </p>
             </div>
           </div>

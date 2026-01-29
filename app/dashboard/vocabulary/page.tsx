@@ -5,8 +5,10 @@ import { createBrowserClient } from '@supabase/ssr';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { transliterate } from 'hebrew-transliteration';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function VocabularyPage() {
+  const { t } = useLanguage();
   const [words, setWords] = useState<any[]>([]);
   const [newWord, setNewWord] = useState('');
   const [translation, setTranslation] = useState('');
@@ -17,7 +19,6 @@ export default function VocabularyPage() {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  // Function to play Hebrew word sound
   const playWordSound = async (hebrewText: string) => {
     try {
       const response = await fetch('/api/tts', {
@@ -61,7 +62,6 @@ export default function VocabularyPage() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    // Auto-generate transliteration
     const autoTranslit = transliterate(newWord);
 
     const { error } = await supabase.from('srs_cards').insert([
@@ -69,7 +69,7 @@ export default function VocabularyPage() {
         user_id: user.id,
         front: newWord,
         back: translation,
-        transliteration: autoTranslit, // Auto-generated!
+        transliteration: autoTranslit,
         next_review: new Date().toISOString(),
         stability: 0,
         reps: 0
@@ -78,7 +78,7 @@ export default function VocabularyPage() {
 
     if (error) {
       console.error('Insert Error:', error.message);
-      alert('Failed to add word: ' + error.message);
+      alert(t('vocabulary.addError') + error.message);
     } else {
       setNewWord('');
       setTranslation('');
@@ -94,18 +94,17 @@ export default function VocabularyPage() {
 
   useEffect(() => { fetchData(); }, []);
 
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">LOADING WORD BANK...</div>;
+  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">{t('vocabulary.loading')}</div>;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8" dir="ltr">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-black text-slate-900 mb-8 tracking-tighter">WORD BANK</h1>
+        <h1 className="text-4xl font-black text-slate-900 mb-8 tracking-tighter">{t('vocabulary.title')}</h1>
 
-        {/* Form Section - No transliteration input needed! */}
         <form onSubmit={addWord} className="bg-white p-4 rounded-[32px] shadow-sm border border-slate-100 mb-12 flex flex-col md:flex-row gap-3">
           <input
             type="text"
-            placeholder="Hebrew Word (עברית)"
+            placeholder={t('vocabulary.hebrewPlaceholder')}
             className="flex-1 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
             value={newWord}
             onChange={(e) => setNewWord(e.target.value)}
@@ -113,17 +112,16 @@ export default function VocabularyPage() {
           />
           <input
             type="text"
-            placeholder="Translation (house)"
+            placeholder={t('vocabulary.translationPlaceholder')}
             className="flex-1 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
             value={translation}
             onChange={(e) => setTranslation(e.target.value)}
           />
           <button className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-            ADD WORD
+            {t('vocabulary.addWord')}
           </button>
         </form>
 
-        {/* Word Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <AnimatePresence>
             {words.map((word) => (
@@ -137,7 +135,7 @@ export default function VocabularyPage() {
               >
                 <div className="flex justify-between items-start">
                   <div className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                    New
+                    {t('vocabulary.new')}
                   </div>
                   <button 
                     onClick={() => deleteWord(word.id)}
@@ -155,14 +153,13 @@ export default function VocabularyPage() {
                   <p className="text-slate-500 font-bold">{word.back}</p>
                 </div>
 
-                {/* Sound Button */}
                 <div className="flex justify-center mt-3">
                   <button
                     onClick={() => playWordSound(word.front)}
                     className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2"
                   >
                     <span>🔊</span>
-                    <span>Listen</span>
+                    <span>{t('vocabulary.listen')}</span>
                   </button>
                 </div>
 

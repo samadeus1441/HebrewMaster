@@ -1,16 +1,17 @@
 'use client';
 
-// 1. פקודה קריטית ל-Vercel: מניעת Cache סטטי
 export const dynamic = 'force-dynamic';
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation'; // הוספנו את ה-Router
+import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, Cell } from 'recharts';
+import { useLanguage } from '@/app/context/LanguageContext';
 
 export default function Dashboard() {
-  const router = useRouter(); // אתחול ה-Router
+  const router = useRouter();
+  const { t } = useLanguage();
   const [stats, setStats] = useState({ xp: 0, streak: 0, wordsLearned: 0, dueCards: 0, mastered: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -29,13 +30,12 @@ export default function Dashboard() {
       
       const { data: { user } } = await supabase.auth.getUser();
       
-      // 2. הפניה לדף הכניסה אם אין משתמש
       if (!user) {
         router.push('/login');
         return;
       }
 
-      setUserName(user.email?.split('@')[0] || 'Student');
+      setUserName(user.email?.split('@')[0] || t('dashboard.student'));
       const userId = user.id;
 
       const { data: profileData } = await supabase
@@ -79,18 +79,18 @@ export default function Dashboard() {
   }, []);
 
   const modules = [
-    { title: 'Alphabet', emoji: '🔤', href: '/dashboard/alphabet', gradient: 'from-blue-500 to-blue-700', stats: '22 letters' },
-    { title: 'Nikud', emoji: 'ֹא', href: '/dashboard/nikud', gradient: 'from-purple-500 to-purple-700', stats: '10 vowels' },
-    { title: 'Vocabulary', emoji: '📚', href: '/dashboard/vocabulary', gradient: 'from-green-500 to-green-700', stats: `${stats.wordsLearned} items` },
-    { title: 'Flashcards', emoji: '🔄', href: '/dashboard/practice', gradient: 'from-orange-500 to-orange-700', stats: stats.dueCards > 0 ? `${stats.dueCards} due` : 'Done!' },
-    { title: 'Quiz Mode', emoji: '⚡', href: '/dashboard/quiz', gradient: 'from-amber-500 to-amber-700', stats: 'Earn XP' }
+    { title: t('dashboard.modules.alphabet'), emoji: '🔤', href: '/dashboard/alphabet', gradient: 'from-blue-500 to-blue-700', stats: t('dashboard.modules.alphabetStats') },
+    { title: t('dashboard.modules.nikud'), emoji: 'ֹא', href: '/dashboard/nikud', gradient: 'from-purple-500 to-purple-700', stats: t('dashboard.modules.nikudStats') },
+    { title: t('dashboard.modules.vocabulary'), emoji: '📚', href: '/dashboard/vocabulary', gradient: 'from-green-500 to-green-700', stats: `${stats.wordsLearned} ${t('dashboard.modules.items')}` },
+    { title: t('dashboard.modules.flashcards'), emoji: '🔄', href: '/dashboard/practice', gradient: 'from-orange-500 to-orange-700', stats: stats.dueCards > 0 ? `${stats.dueCards} ${t('dashboard.modules.due')}` : t('dashboard.modules.done') },
+    { title: t('dashboard.modules.quiz'), emoji: '⚡', href: '/dashboard/quiz', gradient: 'from-amber-500 to-amber-700', stats: t('dashboard.modules.earnXP') }
   ];
 
   if (loading) return (
     <div className="h-screen flex items-center justify-center bg-slate-50">
       <div className="flex flex-col items-center gap-4">
         <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <span className="font-bold text-slate-400 tracking-widest uppercase text-xs">Loading Dashboard...</span>
+        <span className="font-bold text-slate-400 tracking-widest uppercase text-xs">{t('dashboard.loading')}</span>
       </div>
     </div>
   );
@@ -98,16 +98,16 @@ export default function Dashboard() {
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6" dir="ltr">
       <div className="mb-6">
-        <h1 className="text-3xl font-black text-slate-900 leading-tight capitalize">Shalom, {userName}! 👋</h1>
-        <p className="text-slate-500 text-sm font-medium">Your Hebrew learning journey is evolving.</p>
+        <h1 className="text-3xl font-black text-slate-900 leading-tight capitalize">{t('dashboard.greeting')}, {userName}! 👋</h1>
+        <p className="text-slate-500 text-sm font-medium">{t('dashboard.subtitle')}</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total XP', val: stats.xp, color: 'text-blue-600', icon: '⭐' },
-          { label: 'Streak', val: stats.streak, color: 'text-orange-500', icon: '🔥' },
-          { label: 'Words', val: stats.wordsLearned, color: 'text-emerald-500', icon: '📖' },
-          { label: 'Mastered', val: stats.mastered, color: 'text-amber-500', icon: '🏆' }
+          { label: t('dashboard.stats.totalXP'), val: stats.xp, color: 'text-blue-600', icon: '⭐' },
+          { label: t('dashboard.stats.streak'), val: stats.streak, color: 'text-orange-500', icon: '🔥' },
+          { label: t('dashboard.stats.words'), val: stats.wordsLearned, color: 'text-emerald-500', icon: '📖' },
+          { label: t('dashboard.stats.mastered'), val: stats.mastered, color: 'text-amber-500', icon: '🏆' }
         ].map(s => (
           <div key={s.label} className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
             <div>
@@ -139,8 +139,8 @@ export default function Dashboard() {
 
         <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col h-full min-h-[350px]">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Weekly Activity</h3>
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase">SRS Progress</span>
+            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">{t('dashboard.weeklyActivity')}</h3>
+            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase">{t('dashboard.srsProgress')}</span>
           </div>
           <div className="flex-1">
             <ResponsiveContainer width="100%" height="100%">

@@ -9,10 +9,13 @@ import {
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon 
 } from '@heroicons/react/24/outline';
+import { useLanguage } from '@/app/context/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 export default function DashboardNav() {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
   
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,23 +38,28 @@ export default function DashboardNav() {
         <nav className="space-y-2">
           <NavLink 
             href="/dashboard" 
-            label="My Path" 
+            label={t('nav.dashboard')}
             icon={HomeIcon} 
             isActive={pathname === '/dashboard'} 
           />
           <NavLink 
             href="/dashboard/vocabulary" 
-            label="Vocabulary" 
+            label={t('nav.vocabulary')}
             icon={BookOpenIcon} 
             isActive={pathname === '/dashboard/vocabulary'} 
           />
           <NavLink 
             href="/dashboard/settings" 
-            label="Settings" 
+            label={t('nav.settings')}
             icon={Cog6ToothIcon} 
             isActive={pathname === '/dashboard/settings'} 
           />
         </nav>
+      </div>
+
+      {/* Language Switcher */}
+      <div className="px-6 py-4">
+        <LanguageSwitcher />
       </div>
 
       {/* Logout Button at the bottom */}
@@ -61,7 +69,7 @@ export default function DashboardNav() {
           className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all font-bold"
         >
           <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-          <span>Logout</span>
+          <span>{t('nav.logout')}</span>
         </button>
       </div>
     </aside>

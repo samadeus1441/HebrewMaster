@@ -113,7 +113,15 @@ export default function PracticePage() {
               onClick={() => setIsFlipped(true)}
             >
               <span className="text-slate-300 text-xs font-bold uppercase tracking-widest mb-12">Click to flip</span>
-              <h1 className="text-7xl font-black mb-8 text-slate-900" dir="rtl">{currentWord.word_he}</h1>
+              <h1 className="text-7xl font-black mb-3 text-slate-900" dir="rtl">{currentWord.word_he}</h1>
+              
+              {/* התעתיק בצד הקדמי */}
+              {currentWord.translit && (
+                <p className="text-xl text-indigo-400 font-semibold mb-8 italic">
+                  ({currentWord.translit})
+                </p>
+              )}
+              
               <button 
                 onClick={(e) => { e.stopPropagation(); playAudio(currentWord.word_he); }}
                 className="p-4 rounded-full bg-indigo-50 text-indigo-500 hover:bg-indigo-100"

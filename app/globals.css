@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-heebo: 'Heebo', sans-serif;
+  --font-frank-ruhl-libre: 'Frank Ruhl Libre', serif;
+}
+
+html {
+  direction: rtl;
+}
+
+body {
+  @apply bg-white text-gray-900;
+  font-family: var(--font-heebo);
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  .font-hebrew {
+    font-family: var(--font-heebo);
+  }
+}

@@ -26,7 +26,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="he" dir="rtl">
+    // שינינו ל-ltr כדי שה-Sidebar והממשק לא יתהפכו בטעות
+    <html lang="he" dir="ltr">
       <body className={`${heebo.variable} ${frankRuhlLibre.variable} font-sans antialiased`}>
         {children}
       </body>

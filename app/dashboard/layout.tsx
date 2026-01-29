@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
+import { createBrowserClient } from '@supabase/ssr';
 import { 
   HomeIcon, 
   LanguageIcon, 
@@ -10,9 +11,11 @@ import {
   QueueListIcon, 
   SparklesIcon,
   AcademicCapIcon,
-  Cog6ToothIcon
+  Cog6ToothIcon,
+  ArrowLeftOnRectangleIcon 
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
+import { useState } from 'react';
 
 export default function DashboardLayout({
   children,
@@ -20,6 +23,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const router = useRouter();
+  
+  // יצירת לקוח Supabase בצד הלקוח
+  const [supabase] = useState(() => 
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
 
   const links = [
     { name: 'My Path', href: '/dashboard', icon: HomeIcon },
@@ -30,11 +42,17 @@ export default function DashboardLayout({
     { name: 'Quiz Mode', href: '/dashboard/quiz', icon: SparklesIcon, special: true },
   ];
 
+  // פונקציית התנתקות
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/'); // החזרת המשתמש לדף הבית
+    router.refresh(); // רענון כדי לנקות את ה-State של המערכת
+  };
+
   return (
     <div className="flex h-screen bg-slate-50" dir="ltr">
       <Toaster position="top-center" />
       
-      {/* Sidebar - החזרנו את העיצוב הכהה והיוקרתי */}
       <aside className="w-64 bg-slate-900 text-white flex flex-col shadow-xl flex-none">
         <div className="p-8">
           <h1 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
@@ -54,7 +72,7 @@ export default function DashboardLayout({
                 className={clsx(
                   "flex items-center space-x-3 p-3 rounded-2xl transition-all font-medium",
                   {
-                    "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 font-bold": isActive || (link.special && isActive),
+                    "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 font-bold": isActive,
                     "hover:bg-white/10 text-slate-300": !isActive,
                     "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20": link.special && !isActive
                   }
@@ -67,15 +85,23 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="p-6 border-t border-white/5">
+        <div className="p-6 border-t border-white/5 space-y-2">
           <Link href="/dashboard/settings" className="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white transition-colors">
             <Cog6ToothIcon className="w-5 h-5" />
             <span>Settings</span>
           </Link>
+
+          {/* כפתור הניתוק */}
+          <button 
+            onClick={handleLogout}
+            className="w-full flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
+          >
+            <ArrowLeftOnRectangleIcon className="w-5 h-5" />
+            <span>Log Out</span>
+          </button>
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
         <div className="p-8 md:p-12">
           {children}

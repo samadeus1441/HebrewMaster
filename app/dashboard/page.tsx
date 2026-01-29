@@ -1,17 +1,21 @@
 'use client';
 
+// 1. פקודה קריטית ל-Vercel: מניעת Cache סטטי
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation'; // הוספנו את ה-Router
 import { createBrowserClient } from '@supabase/ssr';
 import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, Cell } from 'recharts';
 
 export default function Dashboard() {
+  const router = useRouter(); // אתחול ה-Router
   const [stats, setStats] = useState({ xp: 0, streak: 0, wordsLearned: 0, dueCards: 0, mastered: 0 });
   const [chartData, setChartData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [userName, setUserName] = useState('Student');
 
-  // אתחול ה-Client של סופבייס המותאם לדפדפן
   const [supabase] = useState(() => 
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,28 +27,28 @@ export default function Dashboard() {
     try {
       setLoading(true);
       
-      // 1. קבלת המשתמש המחובר
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user) return;
+      // 2. הפניה לדף הכניסה אם אין משתמש
+      if (!user) {
+        router.push('/login');
+        return;
+      }
 
       setUserName(user.email?.split('@')[0] || 'Student');
       const userId = user.id;
 
-      // 2. שליפת ה-XP האמיתי מטבלת profiles (הטבלה שהמשחק מעדכן)
       const { data: profileData } = await supabase
         .from('profiles')
         .select('xp')
         .eq('id', userId)
         .single();
       
-      // 3. שליפת נתוני SRS (כרטיסיות לימוד)
       const { data: srsData } = await supabase
         .from('srs_cards')
         .select('*')
         .eq('user_id', userId);
       
-      // 4. עיבוד הנתונים לתצוגה
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const activity = (srsData || []).reduce((acc: any, curr: any) => {
         if (!curr.last_review) return acc;
@@ -56,8 +60,8 @@ export default function Dashboard() {
       setChartData(days.map(day => ({ name: day, xp: activity[day] || 0 })));
       
       setStats({
-        xp: profileData?.xp || 0, // משתמש ב-XP מהפרופיל האמיתי
-        streak: 0, // ניתן להוסיף לוגיקת סטריק בעתיד
+        xp: profileData?.xp || 0,
+        streak: 0,
         wordsLearned: srsData?.length || 0,
         dueCards: (srsData || []).filter(s => new Date(s.due_date) <= new Date()).length,
         mastered: (srsData || []).filter(s => s.stability >= 1).length
@@ -93,13 +97,11 @@ export default function Dashboard() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6" dir="ltr">
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-black text-slate-900 leading-tight capitalize">Shalom, {userName}! 👋</h1>
         <p className="text-slate-500 text-sm font-medium">Your Hebrew learning journey is evolving.</p>
       </div>
 
-      {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
         {[
           { label: 'Total XP', val: stats.xp, color: 'text-blue-600', icon: '⭐' },
@@ -118,7 +120,6 @@ export default function Dashboard() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Modules */}
         <div className="lg:col-span-2 grid grid-cols-2 gap-4">
           {modules.map((m) => (
             <Link key={m.title} href={m.href} className="group">
@@ -136,7 +137,6 @@ export default function Dashboard() {
           ))}
         </div>
 
-        {/* Activity Chart */}
         <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col h-full min-h-[350px]">
           <div className="flex justify-between items-center mb-6">
             <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Weekly Activity</h3>

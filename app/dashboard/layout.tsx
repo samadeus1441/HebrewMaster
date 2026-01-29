@@ -4,22 +4,26 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
 import { createBrowserClient } from '@supabase/ssr';
-import { 
-  HomeIcon, 
-  LanguageIcon, 
-  BookOpenIcon, 
-  QueueListIcon, 
+import {
+  HomeIcon,
+  LanguageIcon,
+  BookOpenIcon,
+  QueueListIcon,
   SparklesIcon,
   AcademicCapIcon,
   Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  UserCircleIcon 
+  UserCircleIcon
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
+import { useLanguage } from '@/app/context/LanguageContext';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+
 export const dynamic = 'force-dynamic';
+
 export default function DashboardLayout({
   children,
 }: {
@@ -27,17 +31,17 @@ export default function DashboardLayout({
 }) {
   const pathname = usePathname();
   const router = useRouter();
+  const { t } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  
-  const [supabase] = useState(() => 
+
+  const [supabase] = useState(() =>
     createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     )
   );
 
-  // משיכת פרטי המשתמש בזמן הטעינה
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -47,12 +51,12 @@ export default function DashboardLayout({
   }, [supabase]);
 
   const links = [
-    { name: 'My Path', href: '/dashboard', icon: HomeIcon },
-    { name: 'Alphabet', href: '/dashboard/alphabet', icon: LanguageIcon },
-    { name: 'Nikud', href: '/dashboard/nikud', icon: AcademicCapIcon },
-    { name: 'Vocabulary', href: '/dashboard/vocabulary', icon: BookOpenIcon },
-    { name: 'Flashcards', href: '/dashboard/practice', icon: QueueListIcon },
-    { name: 'Quiz Mode', href: '/dashboard/quiz', icon: SparklesIcon, special: true },
+    { name: t('nav.dashboard'), href: '/dashboard', icon: HomeIcon },
+    { name: t('nav.alphabet'), href: '/dashboard/alphabet', icon: LanguageIcon },
+    { name: t('nav.nikud'), href: '/dashboard/nikud', icon: AcademicCapIcon },
+    { name: t('nav.vocabulary'), href: '/dashboard/vocabulary', icon: BookOpenIcon },
+    { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
+    { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon, special: true },
   ];
 
   const handleLogout = async () => {
@@ -64,10 +68,10 @@ export default function DashboardLayout({
   return (
     <div className="flex h-screen bg-slate-50" dir="ltr">
       <Toaster position="top-center" />
-      
-      {/* כפתור המבורגר למובייל */}
+
+      {/* Mobile Menu Button */}
       <div className="md:hidden fixed top-4 right-4 z-50">
-        <button 
+        <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           className="p-2 bg-slate-900 text-white rounded-lg shadow-lg"
         >
@@ -88,14 +92,14 @@ export default function DashboardLayout({
             HEBREW MASTER
           </h1>
         </div>
-        
+
         <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
           {links.map((link) => {
             const LinkIcon = link.icon;
             const isActive = pathname === link.href;
 
             return (
-              <Link 
+              <Link
                 key={link.name}
                 href={link.href}
                 onClick={() => setIsMobileMenuOpen(false)}
@@ -115,30 +119,35 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* פאנל משתמש בתחתית */}
+        {/* User Panel + Language Switcher */}
         <div className="p-6 border-t border-white/5 space-y-4">
           {userEmail && (
             <div className="flex items-center space-x-3 p-2 bg-white/5 rounded-2xl border border-white/5">
               <UserCircleIcon className="w-10 h-10 text-indigo-400 flex-none" />
               <div className="overflow-hidden">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Student</p>
+                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{t('dashboard.student')}</p>
                 <p className="text-sm text-slate-200 truncate font-medium">{userEmail}</p>
               </div>
             </div>
           )}
 
+          {/* Language Switcher */}
+          <div className="px-2">
+            <LanguageSwitcher />
+          </div>
+
           <div className="space-y-1">
             <Link href="/dashboard/settings" className="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white transition-colors">
               <Cog6ToothIcon className="w-5 h-5" />
-              <span>Settings</span>
+              <span>{t('nav.settings')}</span>
             </Link>
 
-            <button 
+            <button
               onClick={handleLogout}
               className="w-full flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
             >
               <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-              <span>Log Out</span>
+              <span>{t('nav.logout')}</span>
             </button>
           </div>
         </div>

@@ -193,8 +193,8 @@ export default function AdminPage() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#0a0a0f',
-      color: '#e0e0e0',
+      backgroundColor: '#f5f5f5',
+      color: '#1a1a1a',
       fontFamily: "'JetBrains Mono', 'Fira Code', monospace"
     }}>
       {/* Header */}

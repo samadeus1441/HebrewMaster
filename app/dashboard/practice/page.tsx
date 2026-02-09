@@ -24,18 +24,32 @@ export default function PracticePage() {
     
     // Get current user
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
+    console.log('🔑 Current user ID:', user?.id)
+    console.log('📧 Current user email:', user?.email)
+    
+    if (!user) {
+      console.log('❌ No user logged in')
+      setLoading(false)
+      return
+    }
     
     // Query srs_cards for THIS user's personalized vocabulary
-    const { data } = await supabase
+    console.log('🔍 Querying srs_cards for user_id:', user.id)
+    const { data, error } = await supabase
       .from('srs_cards')
       .select('*')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(25)
+      
+    console.log('📊 Query result:', data)
+    console.log('❌ Query error:', error)
 
     if (data && data.length > 0) {
       setWords(data)
+      console.log('✅ Loaded', data.length, 'personalized cards')
+    } else {
+      console.log('⚠️ No cards found for this user')
     }
     setLoading(false)
   }

@@ -36,6 +36,7 @@ export default function PracticePage() {
       .from('srs_cards')
       .select('*')
       .eq('user_id', user.id)
+      .eq('source', 'lesson')
       .order('created_at', { ascending: false })
       .limit(25)
       

@@ -162,7 +162,7 @@ export default function AdminPage() {
       const data = await res.json()
       
       if (data.success) {
-        setRegisterResult(`✅ ${newStudentName} registered! Temp password: ${data.temp_password}`)
+        setRegisterResult(`✅ ${newStudentName} registered!${data.temp_password ? ` Temp password: ${data.temp_password}` : ' They can now sign up.'}`)
         setNewStudentEmail('')
         setNewStudentName('')
         setNewStudentGoals('')

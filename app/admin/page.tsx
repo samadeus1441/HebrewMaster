@@ -18,7 +18,6 @@ interface ImportResult {
   message: string
 }
 
-// Example JSON template shown to user
 const EXAMPLE_JSON = `{
   "lesson_number": 1,
   "lesson_date": "${new Date().toISOString().split('T')[0]}",
@@ -46,14 +45,12 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'import' | 'register' | 'history'>('import')
   
-  // New student form
   const [newStudentEmail, setNewStudentEmail] = useState('')
   const [newStudentName, setNewStudentName] = useState('')
   const [newStudentLang, setNewStudentLang] = useState('en')
   const [newStudentGoals, setNewStudentGoals] = useState('')
   const [registerResult, setRegisterResult] = useState<string | null>(null)
 
-  // Lesson history
   const [lessons, setLessons] = useState<any[]>([])
 
   const supabase = createBrowserClient(
@@ -151,16 +148,6 @@ export default function AdminPage() {
     setLoading(true)
 
     try {
-      // Look up user by email in auth.users (needs service role)
-      // For now, we'll create the profile and the student can sign up separately
-      // OR if they already have an account, we match by email
-      
-      const { data: existingUsers } = await supabase
-        .from('profiles')
-        .select('id')
-      
-      // Try to find user by checking if email matches
-      // This is a simplified approach - in production you'd use admin API
       const res = await fetch('/api/register-student', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -175,7 +162,7 @@ export default function AdminPage() {
       const data = await res.json()
       
       if (data.success) {
-        setRegisterResult(`✅ ${newStudentName} registered! They can now sign up at your website.`)
+        setRegisterResult(`✅ ${newStudentName} registered! Temp password: ${data.temp_password}`)
         setNewStudentEmail('')
         setNewStudentName('')
         setNewStudentGoals('')
@@ -193,73 +180,65 @@ export default function AdminPage() {
   return (
     <div style={{ 
       minHeight: '100vh', 
-      backgroundColor: '#f5f5f5',
-      color: '#1a1a1a',
-      fontFamily: "'JetBrains Mono', 'Fira Code', monospace"
+      backgroundColor: '#ffffff',
+      color: '#1f2937',
+      fontFamily: "system-ui, -apple-system, sans-serif"
     }}>
       {/* Header */}
       <div style={{ 
-        borderBottom: '1px solid #1a1a2e',
-        padding: '16px 24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
+        borderBottom: '2px solid #e5e7eb',
+        padding: '20px 32px',
+        backgroundColor: '#f9fafb'
       }}>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#fff', margin: 0 }}>
-            🎛️ Lesson Control Panel
-          </h1>
-          <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>
-            Import lesson data → Student gets personalized flashcards
-          </p>
-        </div>
-        <div style={{ fontSize: '11px', color: '#444' }}>
-          {students.length} students registered
-        </div>
+        <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>
+          🎛️ Lesson Control Panel
+        </h1>
+        <p style={{ fontSize: '14px', color: '#6b7280', margin: '4px 0 0' }}>
+          Import lesson data → Student gets personalized flashcards ({students.length} students)
+        </p>
       </div>
 
       {/* Tabs */}
       <div style={{ 
         display: 'flex', 
         gap: '0',
-        borderBottom: '1px solid #1a1a2e',
-        padding: '0 24px'
+        borderBottom: '2px solid #e5e7eb',
+        padding: '0 32px',
+        backgroundColor: '#ffffff'
       }}>
         {(['import', 'register', 'history'] as const).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             style={{
-              padding: '12px 20px',
+              padding: '14px 24px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === tab ? '2px solid #4ade80' : '2px solid transparent',
-              color: activeTab === tab ? '#4ade80' : '#666',
+              borderBottom: activeTab === tab ? '3px solid #10b981' : '3px solid transparent',
+              color: activeTab === tab ? '#10b981' : '#6b7280',
               cursor: 'pointer',
-              fontSize: '13px',
+              fontSize: '14px',
               fontWeight: 600,
               textTransform: 'uppercase',
-              letterSpacing: '1px',
-              fontFamily: 'inherit'
+              letterSpacing: '0.5px'
             }}
           >
-            {tab === 'import' ? '📥 Import Lesson' : tab === 'register' ? '👤 Add Student' : '📋 History'}
+            {tab === 'import' ? '📥 Import' : tab === 'register' ? '👤 Add Student' : '📋 History'}
           </button>
         ))}
       </div>
 
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px' }}>
 
-        {/* Error / Success Messages */}
+        {/* Messages */}
         {error && (
           <div style={{
-            background: '#2d1215',
-            border: '1px solid #7f1d1d',
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
             borderRadius: '8px',
             padding: '12px 16px',
-            marginBottom: '16px',
-            fontSize: '13px',
-            color: '#fca5a5'
+            marginBottom: '20px',
+            color: '#991b1b'
           }}>
             ❌ {error}
           </div>
@@ -267,33 +246,29 @@ export default function AdminPage() {
 
         {result && (
           <div style={{
-            background: '#052e16',
-            border: '1px solid #166534',
+            background: '#f0fdf4',
+            border: '1px solid #86efac',
             borderRadius: '8px',
             padding: '12px 16px',
-            marginBottom: '16px',
-            fontSize: '13px',
-            color: '#86efac'
+            marginBottom: '20px',
+            color: '#166534'
           }}>
             ✅ {result.message}
           </div>
         )}
 
-        {/* ============ IMPORT TAB ============ */}
+        {/* IMPORT TAB */}
         {activeTab === 'import' && (
           <div>
-            {/* Step 1: Select Student */}
-            <div style={{ marginBottom: '20px' }}>
+            <div style={{ marginBottom: '24px' }}>
               <label style={{ 
                 display: 'block', 
-                fontSize: '11px', 
-                fontWeight: 700, 
-                textTransform: 'uppercase', 
-                letterSpacing: '1.5px',
-                color: '#888',
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: '#374151',
                 marginBottom: '8px'
               }}>
-                Step 1: Select Student
+                Select Student
               </label>
               <select
                 value={selectedStudent}
@@ -305,52 +280,43 @@ export default function AdminPage() {
                 style={{
                   width: '100%',
                   padding: '12px 16px',
-                  background: '#111118',
-                  border: '1px solid #2a2a3e',
+                  background: '#ffffff',
+                  border: '2px solid #d1d5db',
                   borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '15px',
-                  fontFamily: 'inherit'
+                  color: '#111827',
+                  fontSize: '15px'
                 }}
               >
                 <option value="">-- Choose student --</option>
                 {students.map(s => (
                   <option key={s.user_id} value={s.user_id}>
-                    {s.student_name} ({s.native_language}) — {s.current_level}
+                    {s.student_name} ({s.native_language})
                   </option>
                 ))}
               </select>
               
               {students.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '8px' }}>
                   No students yet. Go to "Add Student" tab first.
                 </p>
               )}
             </div>
 
-            {/* Step 2: Paste JSON */}
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  textTransform: 'uppercase', 
-                  letterSpacing: '1.5px',
-                  color: '#888'
-                }}>
-                  Step 2: Paste Lesson JSON from Claude
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                  Paste Lesson JSON
                 </label>
                 <button
                   onClick={() => setJsonInput(EXAMPLE_JSON)}
                   style={{
-                    background: 'none',
-                    border: '1px solid #333',
-                    borderRadius: '4px',
-                    color: '#666',
-                    padding: '4px 8px',
-                    fontSize: '10px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
+                    background: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    color: '#374151',
+                    padding: '4px 12px',
+                    fontSize: '12px',
+                    cursor: 'pointer'
                   }}
                 >
                   Load Example
@@ -359,121 +325,49 @@ export default function AdminPage() {
               <textarea
                 value={jsonInput}
                 onChange={(e) => setJsonInput(e.target.value)}
-                placeholder='Paste the JSON output from Claude here...'
-                rows={16}
+                placeholder='Paste JSON from Claude...'
+                rows={14}
                 style={{
                   width: '100%',
                   padding: '16px',
-                  background: '#0d0d14',
-                  border: '1px solid #2a2a3e',
+                  background: '#f9fafb',
+                  border: '2px solid #d1d5db',
                   borderRadius: '8px',
-                  color: '#a3e635',
+                  color: '#111827',
                   fontSize: '13px',
-                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                  lineHeight: '1.6',
+                  fontFamily: "'Courier New', monospace",
+                  lineHeight: '1.5',
                   resize: 'vertical'
                 }}
               />
-              
-              {/* Preview */}
-              {jsonInput && (() => {
-                try {
-                  const parsed = JSON.parse(jsonInput)
-                  return (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '12px 16px',
-                      background: '#111118',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#888'
-                    }}>
-                      <strong style={{ color: '#fff' }}>Preview:</strong>{' '}
-                      Lesson {parsed.lesson_number} • {parsed.lesson_date} • {' '}
-                      <span style={{ color: '#4ade80' }}>{parsed.vocabulary?.length || 0} flashcards</span> • {' '}
-                      <span style={{ color: '#fbbf24' }}>{parsed.analysis?.struggles?.length || 0} struggles</span>
-                      {parsed.summary && (
-                        <p style={{ marginTop: '8px', color: '#666', lineHeight: '1.4' }}>
-                          {parsed.summary.substring(0, 150)}...
-                        </p>
-                      )}
-                    </div>
-                  )
-                } catch {
-                  return (
-                    <div style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444' }}>
-                      ⚠️ Invalid JSON — check formatting
-                    </div>
-                  )
-                }
-              })()}
             </div>
 
-            {/* Step 3: Import */}
             <button
               onClick={handleImport}
               disabled={loading || !selectedStudent || !jsonInput}
               style={{
                 width: '100%',
                 padding: '16px',
-                background: loading ? '#1a1a2e' : (!selectedStudent || !jsonInput) ? '#1a1a2e' : '#166534',
+                background: (!selectedStudent || !jsonInput) ? '#e5e7eb' : '#10b981',
                 border: 'none',
                 borderRadius: '8px',
-                color: loading ? '#666' : (!selectedStudent || !jsonInput) ? '#444' : '#fff',
-                fontSize: '15px',
+                color: (!selectedStudent || !jsonInput) ? '#9ca3af' : '#ffffff',
+                fontSize: '16px',
                 fontWeight: 700,
-                cursor: loading ? 'wait' : (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s'
+                cursor: (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer'
               }}
             >
-              {loading ? '⏳ Importing...' : '🚀 Import Lesson & Create Flashcards'}
+              {loading ? '⏳ Importing...' : '🚀 Import Lesson'}
             </button>
-
-            {/* How it works */}
-            <div style={{
-              marginTop: '32px',
-              padding: '20px',
-              background: '#111118',
-              borderRadius: '8px',
-              border: '1px solid #1a1a2e'
-            }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>
-                How this works:
-              </h3>
-              <div style={{ fontSize: '12px', color: '#888', lineHeight: '2' }}>
-                <div>1️⃣ Teach lesson → Record → Transcribe in Colab</div>
-                <div>2️⃣ Paste transcript to Claude → Get JSON output</div>
-                <div>3️⃣ Paste JSON here → Click Import</div>
-                <div>4️⃣ Student logs in → Sees new flashcards + lesson summary</div>
-              </div>
-            </div>
           </div>
         )}
 
-        {/* ============ REGISTER TAB ============ */}
+        {/* REGISTER TAB */}
         {activeTab === 'register' && (
           <div>
-            <div style={{
-              padding: '16px',
-              background: '#111118',
-              borderRadius: '8px',
-              border: '1px solid #1a1a2e',
-              marginBottom: '24px',
-              fontSize: '12px',
-              color: '#888',
-              lineHeight: '1.6'
-            }}>
-              <strong style={{ color: '#fff' }}>How student accounts work:</strong><br/>
-              1. You register the student here (name + email)<br/>
-              2. Student signs up on your website with that email<br/>
-              3. The system links their account to their lesson data<br/>
-              4. They see personalized flashcards when they log in
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
                   Student Name
                 </label>
                 <input
@@ -481,16 +375,16 @@ export default function AdminPage() {
                   onChange={(e) => setNewStudentName(e.target.value)}
                   placeholder="Nikolai"
                   style={{
-                    width: '100%', padding: '12px 16px', background: '#0d0d14',
-                    border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                    fontSize: '14px', fontFamily: 'inherit'
+                    width: '100%', padding: '12px 16px', background: '#ffffff',
+                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                    fontSize: '15px'
                   }}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
-                  Email (must match their signup email)
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  Email
                 </label>
                 <input
                   value={newStudentEmail}
@@ -498,50 +392,46 @@ export default function AdminPage() {
                   placeholder="nikolai@example.com"
                   type="email"
                   style={{
-                    width: '100%', padding: '12px 16px', background: '#0d0d14',
-                    border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                    fontSize: '14px', fontFamily: 'inherit'
+                    width: '100%', padding: '12px 16px', background: '#ffffff',
+                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                    fontSize: '15px'
                   }}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
-                    Native Language
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                    Language
                   </label>
                   <select
                     value={newStudentLang}
                     onChange={(e) => setNewStudentLang(e.target.value)}
                     style={{
-                      width: '100%', padding: '12px 16px', background: '#0d0d14',
-                      border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                      fontSize: '14px', fontFamily: 'inherit'
+                      width: '100%', padding: '12px 16px', background: '#ffffff',
+                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                      fontSize: '15px'
                     }}
                   >
                     <option value="en">English</option>
                     <option value="fr">French</option>
                     <option value="ru">Russian</option>
                     <option value="es">Spanish</option>
-                    <option value="de">German</option>
-                    <option value="pt">Portuguese</option>
-                    <option value="nl">Dutch</option>
-                    <option value="other">Other</option>
                   </select>
                 </div>
 
-                <div style={{ flex: 2 }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
                     Learning Goals
                   </label>
                   <input
                     value={newStudentGoals}
                     onChange={(e) => setNewStudentGoals(e.target.value)}
-                    placeholder="Torah reading, conversational Hebrew..."
+                    placeholder="Torah reading, conversation..."
                     style={{
-                      width: '100%', padding: '12px 16px', background: '#0d0d14',
-                      border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                      fontSize: '14px', fontFamily: 'inherit'
+                      width: '100%', padding: '12px 16px', background: '#ffffff',
+                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                      fontSize: '15px'
                     }}
                   />
                 </div>
@@ -551,11 +441,12 @@ export default function AdminPage() {
                 onClick={handleRegister}
                 disabled={loading || !newStudentName || !newStudentEmail}
                 style={{
-                  padding: '14px',
-                  background: (!newStudentName || !newStudentEmail) ? '#1a1a2e' : '#1e40af',
+                  padding: '16px',
+                  background: (!newStudentName || !newStudentEmail) ? '#e5e7eb' : '#3b82f6',
                   border: 'none', borderRadius: '8px',
-                  color: (!newStudentName || !newStudentEmail) ? '#444' : '#fff',
-                  fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit'
+                  color: (!newStudentName || !newStudentEmail) ? '#9ca3af' : '#ffffff',
+                  fontSize: '16px', fontWeight: 700, 
+                  cursor: (!newStudentName || !newStudentEmail) ? 'not-allowed' : 'pointer'
                 }}
               >
                 {loading ? '⏳ Registering...' : '👤 Register Student'}
@@ -563,8 +454,8 @@ export default function AdminPage() {
 
               {registerResult && (
                 <div style={{
-                  padding: '12px 16px', background: '#052e16', border: '1px solid #166534',
-                  borderRadius: '8px', fontSize: '13px', color: '#86efac'
+                  padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac',
+                  borderRadius: '8px', color: '#166534', fontSize: '14px', fontWeight: 600
                 }}>
                   {registerResult}
                 </div>
@@ -573,33 +464,31 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* ============ HISTORY TAB ============ */}
+        {/* HISTORY TAB */}
         {activeTab === 'history' && (
           <div>
-            <div style={{ marginBottom: '16px' }}>
-              <select
-                value={selectedStudent}
-                onChange={(e) => {
-                  setSelectedStudent(e.target.value)
-                  const s = students.find(s => s.user_id === e.target.value)
-                  if (s) loadHistory(s.student_name)
-                }}
-                style={{
-                  width: '100%', padding: '12px 16px', background: '#111118',
-                  border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                  fontSize: '14px', fontFamily: 'inherit'
-                }}
-              >
-                <option value="">-- Select student to view history --</option>
-                {students.map(s => (
-                  <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
-                ))}
-              </select>
-            </div>
+            <select
+              value={selectedStudent}
+              onChange={(e) => {
+                setSelectedStudent(e.target.value)
+                const s = students.find(s => s.user_id === e.target.value)
+                if (s) loadHistory(s.student_name)
+              }}
+              style={{
+                width: '100%', padding: '12px 16px', background: '#ffffff',
+                border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                fontSize: '15px', marginBottom: '20px'
+              }}
+            >
+              <option value="">-- Select student --</option>
+              {students.map(s => (
+                <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
+              ))}
+            </select>
 
             {lessons.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px', color: '#444' }}>
-                {selectedStudent ? 'No lessons imported yet for this student.' : 'Select a student above.'}
+              <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
+                {selectedStudent ? 'No lessons yet.' : 'Select a student above.'}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -607,37 +496,20 @@ export default function AdminPage() {
                   <div
                     key={lesson.id}
                     style={{
-                      padding: '16px 20px',
-                      background: '#111118',
-                      border: '1px solid #1a1a2e',
+                      padding: '16px',
+                      background: '#f9fafb',
+                      border: '1px solid #e5e7eb',
                       borderRadius: '8px'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 700, color: '#fff' }}>
-                        Lesson {lesson.lesson_number}
-                      </span>
-                      <span style={{ fontSize: '12px', color: '#666' }}>
-                        {lesson.lesson_date}
-                      </span>
+                    <div style={{ fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+                      Lesson {lesson.lesson_number} • {lesson.lesson_date}
                     </div>
                     {lesson.summary && (
-                      <p style={{ fontSize: '13px', color: '#888', margin: '0 0 8px', lineHeight: '1.5' }}>
-                        {lesson.summary.substring(0, 200)}{lesson.summary.length > 200 ? '...' : ''}
+                      <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 8px' }}>
+                        {lesson.summary.substring(0, 150)}...
                       </p>
                     )}
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
-                      {lesson.vocabulary && (
-                        <span style={{ color: '#4ade80' }}>
-                          📚 {Array.isArray(lesson.vocabulary) ? lesson.vocabulary.length : 0} vocab items
-                        </span>
-                      )}
-                      {lesson.analysis?.struggles && (
-                        <span style={{ color: '#fbbf24' }}>
-                          ⚠️ {lesson.analysis.struggles.length} struggles
-                        </span>
-                      )}
-                    </div>
                   </div>
                 ))}
               </div>

@@ -15,7 +15,8 @@ import {
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
@@ -56,6 +57,7 @@ export default function DashboardLayout({
     { name: t('nav.nikud'), href: '/dashboard/nikud', icon: AcademicCapIcon },
     { name: t('nav.vocabulary'), href: '/dashboard/vocabulary', icon: BookOpenIcon },
     { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
+    { name: '💬 Conversations', href: '/dashboard/conversations', icon: ChatBubbleLeftRightIcon, special: true },
     { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon, special: true },
   ];
 

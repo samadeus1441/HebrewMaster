@@ -1,19 +1,14 @@
 'use client';
 
-import { createBrowserClient } from '@supabase/ssr';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import toast from 'react-hot-toast';
+import { createClient } from '@/lib/supabase-client';
+
+const supabase = createClient();
 
 export default function QuizPage() {
-  const [supabase] = useState(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  );
-
   const [questions, setQuestions] = useState<any[]>([]);
   const [currentQ, setCurrentQ] = useState<any>(null);
   const [options, setOptions] = useState<any[]>([]);
@@ -25,7 +20,6 @@ export default function QuizPage() {
 
   useEffect(() => { startNewGame(); }, []);
 
-  // אנימציית מספרים רצים בסוף
   useEffect(() => {
     if (gameState === 'finished' && score > 0) {
       let start = 0;
@@ -44,20 +38,15 @@ export default function QuizPage() {
     }
   }, [gameState, score]);
 
-  // פונקציית הסאונד והקראת המילים (הייתה חסרה!)
   const playFeedback = async (type: 'success' | 'error' | 'word') => {
     try {
       if (type === 'word') {
-        const response = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: currentQ.word_he }),
-        });
-        const blob = await response.blob();
-        new Audio(URL.createObjectURL(blob)).play();
+        const utterance = new SpeechSynthesisUtterance(currentQ.front);
+        utterance.lang = 'he-IL';
+        window.speechSynthesis.speak(utterance);
       } else {
-        const url = type === 'success' 
-          ? 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3' 
+        const url = type === 'success'
+          ? 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3'
           : 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3';
         new Audio(url).play();
       }
@@ -70,7 +59,17 @@ export default function QuizPage() {
     setDisplayScore(0);
     setMistakes([]);
     setGameState('playing');
-    const { data } = await supabase.from('vocabulary').select('*').limit(50);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('srs_cards')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('source', 'lesson')
+      .limit(50);
+      
     if (data && data.length > 0) {
       const shuffled = data.sort(() => 0.5 - Math.random());
       setQuestions(shuffled);
@@ -94,14 +93,14 @@ export default function QuizPage() {
     if (isCorrect) {
       setGameState('correct');
       setScore(prev => prev + 10);
-      playFeedback('success'); // סאונד הצלחה
-      
+      playFeedback('success');
+
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await supabase.from('srs_cards').upsert({
           user_id: user.id,
-          front: currentQ.word_he,
-          back: currentQ.meaning_en,
+          front: currentQ.front,
+          back: currentQ.back,
           stability: 0.1,
           next_review: new Date().toISOString(),
           reps: 1
@@ -110,7 +109,7 @@ export default function QuizPage() {
     } else {
       setGameState('wrong');
       setMistakes(prev => [...prev, currentQ]);
-      playFeedback('error'); // סאונד טעות
+      playFeedback('error');
     }
 
     setTimeout(() => {
@@ -138,7 +137,6 @@ export default function QuizPage() {
 
   if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">Loading Quiz...</div>;
 
-  // דף תוצאות (היה חסר!)
   if (gameState === 'finished') return (
     <div className="max-w-2xl mx-auto p-8 flex flex-col items-center min-h-screen bg-slate-50 pt-16" dir="ltr">
       <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl mb-4">🏆</motion.div>
@@ -147,7 +145,7 @@ export default function QuizPage() {
         <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2 text-center">XP Earned</p>
         <div className="text-7xl font-black text-indigo-600 mb-6 text-center">{displayScore}</div>
         <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-4">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${(score / 100) * 100}%` }} className="h-full bg-indigo-500" />
+          <motion.div initial={{ width: 0 }} animate={{ width: `${(score / 100) * 100}%` }} className="h-full bg-indigo-500" /> 
         </div>
       </div>
       {mistakes.length > 0 && (
@@ -157,8 +155,8 @@ export default function QuizPage() {
             <tbody>
               {mistakes.map((word, i) => (
                 <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="p-4 text-2xl font-bold text-right text-slate-800" dir="rtl">{word.word_he}</td>
-                  <td className="p-4 text-slate-600 font-medium">{word.meaning_en}</td>
+                  <td className="p-4 text-2xl font-bold text-right text-slate-800" dir="rtl">{word.front}</td>
+                  <td className="p-4 text-slate-600 font-medium">{word.back}</td>
                 </tr>
               ))}
             </tbody>
@@ -179,17 +177,16 @@ export default function QuizPage() {
           <span className="bg-indigo-600 px-6 py-2 rounded-xl text-white shadow-lg">{score} XP</span>
         </div>
         <AnimatePresence mode="wait">
-          <motion.div 
+          <motion.div
             key={currentQ.id}
             initial={{ y: 10, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            className={`w-full bg-white rounded-[40px] shadow-xl p-12 text-center mb-10 border-4 transition-all duration-300 ${
-              gameState === 'correct' ? 'border-green-500 bg-green-50/30' : 
+            className={`w-full bg-white rounded-[40px] shadow-xl p-12 text-center mb-10 border-4 transition-all duration-300 ${ 
+              gameState === 'correct' ? 'border-green-500 bg-green-50/30' :
               gameState === 'wrong' ? 'border-red-500 bg-red-50/30' : 'border-slate-50'
             }`}
           >
-            <h1 className="text-8xl font-black text-slate-900 mb-6 leading-tight text-center" dir="rtl">{currentQ.word_he}</h1>
-            {/* כפתור ה-Listen (היה חסר!) */}
+            <h1 className="text-8xl font-black text-slate-900 mb-6 leading-tight text-center" dir="rtl">{currentQ.front}</h1>
             <button onClick={() => playFeedback('word')} className="text-indigo-600 font-bold flex items-center space-x-2 mx-auto px-6 py-3 rounded-full hover:bg-indigo-50 transition-colors">
               <span>🔊</span><span>Listen</span>
             </button>
@@ -204,10 +201,10 @@ export default function QuizPage() {
               className={`p-6 rounded-3xl text-xl font-bold transition-all border-2 text-left px-8 shadow-sm
                 ${gameState === 'playing' ? 'bg-white border-slate-100 hover:border-indigo-300 text-slate-700' : ''}
                 ${opt.id === currentQ.id && (gameState === 'correct' || gameState === 'wrong') ? 'bg-green-500 text-white border-green-600' : ''}
-                ${gameState === 'wrong' && opt.id !== currentQ.id ? 'bg-red-50 border-red-200 text-red-400 opacity-50' : ''}
+                ${gameState === 'wrong' && opt.id !== currentQ.id ? 'bg-red-50 border-red-200 text-red-400 opacity-50' : ''}    
               `}
             >
-              {opt.meaning_en}
+              {opt.back}
             </button>
           ))}
         </div>

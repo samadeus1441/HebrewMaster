@@ -32,7 +32,7 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: full_code.txt, project_code.txt
+- Files matching these patterns are excluded: full_code.txt, project_code.txt, *.old, *.backup, repomix-output.xml, node_modules/**, .next/**, .git/**, *.log
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -43,7 +43,11 @@ The content is organized as follows:
 <directory_structure>
 .eslintrc.json
 .gitignore
+app/admin/page.tsx
+app/admin/page.tsx.old
+app/api/import-lesson/route.ts
 app/api/migrate-transliterations/route.ts
+app/api/register-student/route.ts
 app/api/seed/route.ts
 app/api/tts/route.ts
 app/auth/callback/route.ts
@@ -62,7 +66,7 @@ app/layout.tsx
 app/login/page.tsx
 app/page.tsx
 app/signup/page.tsx
-app/upload-lesson/page.tsx
+atabase_logic.sql
 components/AlephBetGrid.tsx
 components/AudioPlayer.tsx
 components/DashboardNav.tsx
@@ -85,6 +89,16 @@ middleware.ts
 next.config.js
 package.json
 postcss.config.js
+repomix.config.json
+supabase_full_brain.sql
+supabase/.temp/cli-latest
+supabase/.temp/gotrue-version
+supabase/.temp/pooler-url
+supabase/.temp/postgres-version
+supabase/.temp/project-ref
+supabase/.temp/rest-version
+supabase/.temp/storage-migration
+supabase/.temp/storage-version
 supabase/migrations/001_initial_schema.sql
 tailwind.config.ts
 tsconfig.json
@@ -93,6 +107,85 @@ types/database.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="app/admin/page.tsx.old">
+"use client"
+import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+export default function UploadLesson() {
+  const [uploading, setUploading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+    setMessage('⏳ מעלה...')
+
+    try {
+      const fileName = `${Date.now()}-${file.name}`
+      
+      const { error } = await supabase.storage
+        .from('lessons')
+        .upload(fileName, file)
+
+      if (error) throw error
+
+      setMessage('✅ הקובץ הועלה!')
+      setTimeout(() => alert('בדוק ב-Table Editor'), 2000)
+
+    } catch (error: any) {
+      setMessage(`❌ ${error.message}`)
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', direction: 'rtl', backgroundColor: '#f5f5f5' }}>
+      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxWidth: '500px', width: '100%' }}>
+        <h1 style={{ fontSize: '32px', marginBottom: '30px', textAlign: 'center' }}>העלאת שיעור</h1>
+        
+        <label style={{ display: 'block', border: '2px dashed #ccc', borderRadius: '10px', padding: '40px', cursor: uploading ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
+          <input type="file" accept="audio/*,video/*" onChange={handleUpload} disabled={uploading} style={{ display: 'none' }} />
+          <div style={{ fontSize: '60px' }}>📤</div>
+          <div style={{ fontSize: '20px', marginTop: '10px' }}>{uploading ? '⏳ מעלה...' : 'לחץ לבחירת קובץ'}</div>
+        </label>
+
+        {message && <div style={{ marginTop: '20px', padding: '15px', borderRadius: '8px', backgroundColor: message.includes('✅') ? '#d4edda' : '#f8d7da', color: message.includes('✅') ? '#155724' : '#721c24' }}>{message}</div>}
+      </div>
+    </div>
+  )
+}
+</file>
+
+<file path="repomix.config.json">
+{
+    "output": {
+      "filePath": "repomix-output.xml"
+    },
+    "ignore": {
+      "customPatterns": [
+        "full_code.txt",
+        "project_code.txt",
+        "*.old",
+        "*.backup",
+        "repomix-output.xml",
+        "node_modules/**",
+        ".next/**",
+        ".git/**",
+        "*.log"
+      ]
+    }
+  }
+</file>
 
 <file path=".eslintrc.json">
 {
@@ -137,6 +230,197 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+</file>
+
+<file path="app/api/import-lesson/route.ts">
+import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
+
+// Use service role key for admin operations
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY! // NOT the anon key - needs admin access
+)
+
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json()
+    
+    const {
+      student_user_id,
+      student_name,
+      lesson_number,
+      lesson_date,
+      summary,
+      vocabulary,  // Array of {front, back, transliteration, category}
+      analysis     // Free-form JSON with struggles, recommendations, etc.
+    } = body
+
+    // Validate required fields
+    if (!student_user_id || !student_name || !lesson_number) {
+      return NextResponse.json(
+        { error: 'Missing required fields: student_user_id, student_name, lesson_number' },
+        { status: 400 }
+      )
+    }
+
+    // Call the import function we created in Supabase
+    const { data, error } = await supabase.rpc('import_lesson_data', {
+      p_student_user_id: student_user_id,
+      p_student_name: student_name,
+      p_lesson_number: lesson_number,
+      p_lesson_date: lesson_date || new Date().toISOString().split('T')[0],
+      p_summary: summary || '',
+      p_vocabulary: vocabulary || [],
+      p_analysis: analysis || {}
+    })
+
+    if (error) {
+      console.error('Supabase error:', error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({
+      success: true,
+      lesson_id: data,
+      cards_created: vocabulary?.length || 0,
+      message: `Lesson ${lesson_number} imported for ${student_name}. ${vocabulary?.length || 0} flashcards created.`
+    })
+
+  } catch (err: any) {
+    console.error('Import error:', err)
+    return NextResponse.json(
+      { error: err.message || 'Unknown error' },
+      { status: 500 }
+    )
+  }
+}
+
+// GET: List all students for the admin dropdown
+export async function GET() {
+  try {
+    const { data, error } = await supabase
+      .from('student_profiles')
+      .select('id, user_id, student_name, native_language, current_level, created_at')
+      .order('student_name')
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ students: data || [] })
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}
+</file>
+
+<file path="app/api/register-student/route.ts">
+import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
+
+export async function POST(req: NextRequest) {
+  try {
+    const { email, student_name, native_language, learning_goals } = await req.json()
+
+    if (!email || !student_name) {
+      return NextResponse.json(
+        { error: 'Email and student name are required' },
+        { status: 400 }
+      )
+    }
+
+    // Step 1: Create auth user with temporary password
+    // Student will need to reset password or you send them a magic link
+    const tempPassword = `Hebrew2026_${Math.random().toString(36).slice(2, 10)}`
+    
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: email,
+      password: tempPassword,
+      email_confirm: true // Skip email verification
+    })
+
+    if (authError) {
+      // If user already exists, try to find them
+      if (authError.message.includes('already') || authError.message.includes('exists')) {
+        const { data: { users } } = await supabase.auth.admin.listUsers()
+        const existingUser = users?.find(u => u.email === email)
+        
+        if (existingUser) {
+          // User exists - just create the profile
+          const { error: profileError } = await supabase
+            .from('student_profiles')
+            .upsert({
+              user_id: existingUser.id,
+              student_name,
+              native_language: native_language || 'en',
+              learning_goals: learning_goals || '',
+              current_level: 'beginner'
+            }, { onConflict: 'user_id' })
+
+          if (profileError) {
+            return NextResponse.json({ error: profileError.message }, { status: 500 })
+          }
+
+          return NextResponse.json({
+            success: true,
+            message: `Linked existing user ${email} to student profile ${student_name}`,
+            user_id: existingUser.id
+          })
+        }
+      }
+      
+      return NextResponse.json({ error: authError.message }, { status: 500 })
+    }
+
+    // Step 2: Create student profile
+    const userId = authData.user.id
+    
+    const { error: profileError } = await supabase
+      .from('student_profiles')
+      .insert({
+        user_id: userId,
+        student_name,
+        native_language: native_language || 'en',
+        learning_goals: learning_goals || '',
+        current_level: 'beginner'
+      })
+
+    if (profileError) {
+      return NextResponse.json({ error: profileError.message }, { status: 500 })
+    }
+
+    // Step 3: Create initial profile entry (for XP tracking)
+    await supabase
+      .from('profiles')
+      .upsert({ id: userId, xp: 0 }, { onConflict: 'id' })
+
+    // Step 4: Create user_stats entry
+    await supabase
+      .from('user_stats')
+      .upsert({ 
+        user_id: userId, 
+        total_xp: 0, 
+        current_streak: 0, 
+        words_learned: 0 
+      }, { onConflict: 'user_id' })
+
+    return NextResponse.json({
+      success: true,
+      message: `Student ${student_name} created. Temp password: ${tempPassword}`,
+      user_id: userId,
+      temp_password: tempPassword // Show this once so Jack can share login with student
+    })
+
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 })
+  }
+}
 </file>
 
 <file path="app/api/seed/route.ts">
@@ -503,6 +787,96 @@ export default function SignupPage() {
     </div>
   );
 }
+</file>
+
+<file path="atabase_logic.sql">
+| name                    | definition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| update_user_xp          | CREATE OR REPLACE FUNCTION public.update_user_xp(user_id_input uuid, xp_to_add integer)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+  UPDATE profiles
+  SET xp = COALESCE(xp, 0) + xp_to_add,
+      updated_at = NOW()
+  WHERE id = user_id_input;
+  
+  IF NOT FOUND THEN
+    INSERT INTO profiles (id, xp, updated_at)
+    VALUES (user_id_input, xp_to_add, NOW());
+  END IF;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| increment_words_learned | CREATE OR REPLACE FUNCTION public.increment_words_learned(user_id_input uuid)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    UPDATE user_stats
+    SET words_learned = COALESCE(words_learned, 0) + 1
+    WHERE user_id = user_id_input;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| update_srs_item         | CREATE OR REPLACE FUNCTION public.update_srs_item(user_id_input uuid, content_id_input uuid, content_type_input character varying, rating_input integer)
+ RETURNS void
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+BEGIN
+    INSERT INTO srs_cards (user_id, item_id, item_type, difficulty, stability, due_date, last_review)
+    VALUES (user_id_input, content_id_input, content_type_input, 5.0, 0.1, NOW(), NOW())
+    ON CONFLICT (user_id, item_id) 
+    DO UPDATE SET 
+        reps = srs_cards.reps + 1,
+        difficulty = CASE 
+            WHEN rating_input = 1 THEN srs_cards.difficulty + 1.0
+            WHEN rating_input = 4 THEN srs_cards.difficulty - 0.5
+            ELSE srs_cards.difficulty 
+        END,
+        due_date = CASE 
+            WHEN rating_input = 1 THEN NOW() + INTERVAL '1 minute'
+            WHEN rating_input = 2 THEN NOW() + INTERVAL '1 day'
+            WHEN rating_input = 3 THEN NOW() + INTERVAL '3 days'
+            WHEN rating_input = 4 THEN NOW() + INTERVAL '7 days'
+            ELSE NOW()
+        END,
+        last_review = NOW();
+END;
+$function$
+ |
+| on_audio_upload         | CREATE OR REPLACE FUNCTION public.on_audio_upload()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+AS $function$
+begin
+  perform net.http_post(
+    url := 'https://zetczjqsavwzprrwyrpl.supabase.co/functions/v1/transcribe-lesson',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpldGN6anFzYXZ3enBycnd5cnBsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODU4ODU4MCwiZXhwIjoyMDg0MTY0NTgwfQ.P_n154F5TRDgly5M2WKRMtAFeoajirEBfAixdBoTKSE'
+    ),
+    body := jsonb_build_object('record', row_to_json(new))::jsonb -- שינוי ל-jsonb מפורש
+  );
+  
+  return new;
+end;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                        || schemaname | tablename     | policyname                       | permissive | roles    | cmd    | qual                   | with_check |
+| ---------- | ------------- | -------------------------------- | ---------- | -------- | ------ | ---------------------- | ---------- |
+| public     | roots         | Public Roots                     | PERMISSIVE | {public} | SELECT | true                   | null       |
+| public     | user_progress | Users manage own progress        | PERMISSIVE | {public} | ALL    | (auth.uid() = user_id) | null       |
+| public     | user_stats    | Allow all                        | PERMISSIVE | {public} | ALL    | true                   | null       |
+| public     | user_stats    | Allow update for all             | PERMISSIVE | {public} | ALL    | true                   | null       |
+| public     | lessons       | Allow all for service role       | PERMISSIVE | {public} | ALL    | true                   | true       |
+| public     | lessons       | Allow internal service access    | PERMISSIVE | {public} | ALL    | true                   | null       |
+| public     | lessons       | Service role can do everything   | PERMISSIVE | {public} | ALL    | true                   | null       |
+| public     | lessons       | Users can view their own lessons | PERMISSIVE | {public} | SELECT | (auth.uid() = user_id) | null       |
 </file>
 
 <file path="components/AlephBetGrid.tsx">
@@ -5003,6 +5377,42 @@ module.exports = {
 }
 </file>
 
+<file path="supabase_full_brain.sql">
+
+</file>
+
+<file path="supabase/.temp/cli-latest">
+v2.75.0
+</file>
+
+<file path="supabase/.temp/gotrue-version">
+v2.186.0
+</file>
+
+<file path="supabase/.temp/pooler-url">
+postgresql://postgres.zetczjqsavwzprrwyrpl@aws-1-eu-west-3.pooler.supabase.com:5432/postgres
+</file>
+
+<file path="supabase/.temp/postgres-version">
+17.6.1.063
+</file>
+
+<file path="supabase/.temp/project-ref">
+zetczjqsavwzprrwyrpl
+</file>
+
+<file path="supabase/.temp/rest-version">
+v14.1
+</file>
+
+<file path="supabase/.temp/storage-migration">
+buckets-objects-grants-postgres
+</file>
+
+<file path="supabase/.temp/storage-version">
+v1.33.0
+</file>
+
 <file path="supabase/migrations/001_initial_schema.sql">
 -- Hebrew Master: Initial Schema Migration
 -- Semitic Morphology Engine
@@ -6057,6 +6467,659 @@ const nextConfig = {
 module.exports = nextConfig;
 </file>
 
+<file path="app/admin/page.tsx">
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+
+interface Student {
+  id: string
+  user_id: string
+  student_name: string
+  native_language: string
+  current_level: string
+}
+
+interface ImportResult {
+  success: boolean
+  lesson_id: string
+  cards_created: number
+  message: string
+}
+
+// Example JSON template shown to user
+const EXAMPLE_JSON = `{
+  "lesson_number": 1,
+  "lesson_date": "${new Date().toISOString().split('T')[0]}",
+  "summary": "Trial lesson. Covered basic greetings and self-introduction...",
+  "vocabulary": [
+    {"front": "שָׁלוֹם", "back": "Hello / Peace", "transliteration": "shalom", "category": "greetings"},
+    {"front": "מַה שְׁלוֹמְךָ", "back": "How are you? (m)", "transliteration": "ma shlomkha", "category": "phrases"}
+  ],
+  "analysis": {
+    "struggles": ["Gender agreement", "Pronunciation of ח"],
+    "strengths": ["Good ear for vowels", "Quick recall"],
+    "recommendations": ["Drill greeting responses", "Practice ח vs כ minimal pairs"],
+    "talk_ratio": {"student": 35, "teacher": 65},
+    "hebrew_percentage": 20,
+    "notes": "Motivated student, learns through conversation"
+  }
+}`
+
+export default function AdminPage() {
+  const [students, setStudents] = useState<Student[]>([])
+  const [selectedStudent, setSelectedStudent] = useState<string>('')
+  const [jsonInput, setJsonInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'import' | 'register' | 'history'>('import')
+  
+  // New student form
+  const [newStudentEmail, setNewStudentEmail] = useState('')
+  const [newStudentName, setNewStudentName] = useState('')
+  const [newStudentLang, setNewStudentLang] = useState('en')
+  const [newStudentGoals, setNewStudentGoals] = useState('')
+  const [registerResult, setRegisterResult] = useState<string | null>(null)
+
+  // Lesson history
+  const [lessons, setLessons] = useState<any[]>([])
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    loadStudents()
+  }, [])
+
+  async function loadStudents() {
+    const res = await fetch('/api/import-lesson')
+    const data = await res.json()
+    if (data.students) {
+      setStudents(data.students)
+    }
+  }
+
+  async function loadHistory(studentName: string) {
+    const { data } = await supabase
+      .from('lessons')
+      .select('id, student_name, lesson_number, lesson_date, summary, vocabulary, analysis, created_at')
+      .eq('student_name', studentName)
+      .order('lesson_number', { ascending: false })
+    
+    setLessons(data || [])
+  }
+
+  async function handleImport() {
+    setError(null)
+    setResult(null)
+
+    if (!selectedStudent) {
+      setError('Select a student first')
+      return
+    }
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(jsonInput)
+    } catch {
+      setError('Invalid JSON. Copy the exact output from Claude.')
+      return
+    }
+
+    const student = students.find(s => s.user_id === selectedStudent)
+    if (!student) {
+      setError('Student not found')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/import-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_user_id: student.user_id,
+          student_name: student.student_name,
+          lesson_number: parsed.lesson_number,
+          lesson_date: parsed.lesson_date,
+          summary: parsed.summary,
+          vocabulary: parsed.vocabulary || [],
+          analysis: parsed.analysis || {}
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setResult(data)
+        setJsonInput('')
+        loadHistory(student.student_name)
+      } else {
+        setError(data.error || 'Import failed')
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleRegister() {
+    setRegisterResult(null)
+    setError(null)
+
+    if (!newStudentEmail || !newStudentName) {
+      setError('Name and email are required')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      // Look up user by email in auth.users (needs service role)
+      // For now, we'll create the profile and the student can sign up separately
+      // OR if they already have an account, we match by email
+      
+      const { data: existingUsers } = await supabase
+        .from('profiles')
+        .select('id')
+      
+      // Try to find user by checking if email matches
+      // This is a simplified approach - in production you'd use admin API
+      const res = await fetch('/api/register-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newStudentEmail,
+          student_name: newStudentName,
+          native_language: newStudentLang,
+          learning_goals: newStudentGoals
+        })
+      })
+
+      const data = await res.json()
+      
+      if (data.success) {
+        setRegisterResult(`✅ ${newStudentName} registered! They can now sign up at your website.`)
+        setNewStudentEmail('')
+        setNewStudentName('')
+        setNewStudentGoals('')
+        loadStudents()
+      } else {
+        setError(data.error || 'Registration failed')
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#f5f5f5',
+      color: '#1a1a1a',
+      fontFamily: "'JetBrains Mono', 'Fira Code', monospace"
+    }}>
+      {/* Header */}
+      <div style={{ 
+        borderBottom: '1px solid #1a1a2e',
+        padding: '16px 24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#fff', margin: 0 }}>
+            🎛️ Lesson Control Panel
+          </h1>
+          <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>
+            Import lesson data → Student gets personalized flashcards
+          </p>
+        </div>
+        <div style={{ fontSize: '11px', color: '#444' }}>
+          {students.length} students registered
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '0',
+        borderBottom: '1px solid #1a1a2e',
+        padding: '0 24px'
+      }}>
+        {(['import', 'register', 'history'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: '12px 20px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === tab ? '2px solid #4ade80' : '2px solid transparent',
+              color: activeTab === tab ? '#4ade80' : '#666',
+              cursor: 'pointer',
+              fontSize: '13px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              fontFamily: 'inherit'
+            }}
+          >
+            {tab === 'import' ? '📥 Import Lesson' : tab === 'register' ? '👤 Add Student' : '📋 History'}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
+
+        {/* Error / Success Messages */}
+        {error && (
+          <div style={{
+            background: '#2d1215',
+            border: '1px solid #7f1d1d',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            fontSize: '13px',
+            color: '#fca5a5'
+          }}>
+            ❌ {error}
+          </div>
+        )}
+
+        {result && (
+          <div style={{
+            background: '#052e16',
+            border: '1px solid #166534',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '16px',
+            fontSize: '13px',
+            color: '#86efac'
+          }}>
+            ✅ {result.message}
+          </div>
+        )}
+
+        {/* ============ IMPORT TAB ============ */}
+        {activeTab === 'import' && (
+          <div>
+            {/* Step 1: Select Student */}
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '11px', 
+                fontWeight: 700, 
+                textTransform: 'uppercase', 
+                letterSpacing: '1.5px',
+                color: '#888',
+                marginBottom: '8px'
+              }}>
+                Step 1: Select Student
+              </label>
+              <select
+                value={selectedStudent}
+                onChange={(e) => {
+                  setSelectedStudent(e.target.value)
+                  const s = students.find(s => s.user_id === e.target.value)
+                  if (s) loadHistory(s.student_name)
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: '#111118',
+                  border: '1px solid #2a2a3e',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '15px',
+                  fontFamily: 'inherit'
+                }}
+              >
+                <option value="">-- Choose student --</option>
+                {students.map(s => (
+                  <option key={s.user_id} value={s.user_id}>
+                    {s.student_name} ({s.native_language}) — {s.current_level}
+                  </option>
+                ))}
+              </select>
+              
+              {students.length === 0 && (
+                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+                  No students yet. Go to "Add Student" tab first.
+                </p>
+              )}
+            </div>
+
+            {/* Step 2: Paste JSON */}
+            <div style={{ marginBottom: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                <label style={{ 
+                  fontSize: '11px', 
+                  fontWeight: 700, 
+                  textTransform: 'uppercase', 
+                  letterSpacing: '1.5px',
+                  color: '#888'
+                }}>
+                  Step 2: Paste Lesson JSON from Claude
+                </label>
+                <button
+                  onClick={() => setJsonInput(EXAMPLE_JSON)}
+                  style={{
+                    background: 'none',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    color: '#666',
+                    padding: '4px 8px',
+                    fontSize: '10px',
+                    cursor: 'pointer',
+                    fontFamily: 'inherit'
+                  }}
+                >
+                  Load Example
+                </button>
+              </div>
+              <textarea
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                placeholder='Paste the JSON output from Claude here...'
+                rows={16}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: '#0d0d14',
+                  border: '1px solid #2a2a3e',
+                  borderRadius: '8px',
+                  color: '#a3e635',
+                  fontSize: '13px',
+                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
+                  lineHeight: '1.6',
+                  resize: 'vertical'
+                }}
+              />
+              
+              {/* Preview */}
+              {jsonInput && (() => {
+                try {
+                  const parsed = JSON.parse(jsonInput)
+                  return (
+                    <div style={{
+                      marginTop: '12px',
+                      padding: '12px 16px',
+                      background: '#111118',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      color: '#888'
+                    }}>
+                      <strong style={{ color: '#fff' }}>Preview:</strong>{' '}
+                      Lesson {parsed.lesson_number} • {parsed.lesson_date} • {' '}
+                      <span style={{ color: '#4ade80' }}>{parsed.vocabulary?.length || 0} flashcards</span> • {' '}
+                      <span style={{ color: '#fbbf24' }}>{parsed.analysis?.struggles?.length || 0} struggles</span>
+                      {parsed.summary && (
+                        <p style={{ marginTop: '8px', color: '#666', lineHeight: '1.4' }}>
+                          {parsed.summary.substring(0, 150)}...
+                        </p>
+                      )}
+                    </div>
+                  )
+                } catch {
+                  return (
+                    <div style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444' }}>
+                      ⚠️ Invalid JSON — check formatting
+                    </div>
+                  )
+                }
+              })()}
+            </div>
+
+            {/* Step 3: Import */}
+            <button
+              onClick={handleImport}
+              disabled={loading || !selectedStudent || !jsonInput}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: loading ? '#1a1a2e' : (!selectedStudent || !jsonInput) ? '#1a1a2e' : '#166534',
+                border: 'none',
+                borderRadius: '8px',
+                color: loading ? '#666' : (!selectedStudent || !jsonInput) ? '#444' : '#fff',
+                fontSize: '15px',
+                fontWeight: 700,
+                cursor: loading ? 'wait' : (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer',
+                fontFamily: 'inherit',
+                transition: 'all 0.2s'
+              }}
+            >
+              {loading ? '⏳ Importing...' : '🚀 Import Lesson & Create Flashcards'}
+            </button>
+
+            {/* How it works */}
+            <div style={{
+              marginTop: '32px',
+              padding: '20px',
+              background: '#111118',
+              borderRadius: '8px',
+              border: '1px solid #1a1a2e'
+            }}>
+              <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>
+                How this works:
+              </h3>
+              <div style={{ fontSize: '12px', color: '#888', lineHeight: '2' }}>
+                <div>1️⃣ Teach lesson → Record → Transcribe in Colab</div>
+                <div>2️⃣ Paste transcript to Claude → Get JSON output</div>
+                <div>3️⃣ Paste JSON here → Click Import</div>
+                <div>4️⃣ Student logs in → Sees new flashcards + lesson summary</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============ REGISTER TAB ============ */}
+        {activeTab === 'register' && (
+          <div>
+            <div style={{
+              padding: '16px',
+              background: '#111118',
+              borderRadius: '8px',
+              border: '1px solid #1a1a2e',
+              marginBottom: '24px',
+              fontSize: '12px',
+              color: '#888',
+              lineHeight: '1.6'
+            }}>
+              <strong style={{ color: '#fff' }}>How student accounts work:</strong><br/>
+              1. You register the student here (name + email)<br/>
+              2. Student signs up on your website with that email<br/>
+              3. The system links their account to their lesson data<br/>
+              4. They see personalized flashcards when they log in
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
+                  Student Name
+                </label>
+                <input
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Nikolai"
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#0d0d14',
+                    border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
+                    fontSize: '14px', fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
+                  Email (must match their signup email)
+                </label>
+                <input
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                  placeholder="nikolai@example.com"
+                  type="email"
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#0d0d14',
+                    border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
+                    fontSize: '14px', fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '16px' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
+                    Native Language
+                  </label>
+                  <select
+                    value={newStudentLang}
+                    onChange={(e) => setNewStudentLang(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px 16px', background: '#0d0d14',
+                      border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
+                      fontSize: '14px', fontFamily: 'inherit'
+                    }}
+                  >
+                    <option value="en">English</option>
+                    <option value="fr">French</option>
+                    <option value="ru">Russian</option>
+                    <option value="es">Spanish</option>
+                    <option value="de">German</option>
+                    <option value="pt">Portuguese</option>
+                    <option value="nl">Dutch</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+
+                <div style={{ flex: 2 }}>
+                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
+                    Learning Goals
+                  </label>
+                  <input
+                    value={newStudentGoals}
+                    onChange={(e) => setNewStudentGoals(e.target.value)}
+                    placeholder="Torah reading, conversational Hebrew..."
+                    style={{
+                      width: '100%', padding: '12px 16px', background: '#0d0d14',
+                      border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
+                      fontSize: '14px', fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleRegister}
+                disabled={loading || !newStudentName || !newStudentEmail}
+                style={{
+                  padding: '14px',
+                  background: (!newStudentName || !newStudentEmail) ? '#1a1a2e' : '#1e40af',
+                  border: 'none', borderRadius: '8px',
+                  color: (!newStudentName || !newStudentEmail) ? '#444' : '#fff',
+                  fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit'
+                }}
+              >
+                {loading ? '⏳ Registering...' : '👤 Register Student'}
+              </button>
+
+              {registerResult && (
+                <div style={{
+                  padding: '12px 16px', background: '#052e16', border: '1px solid #166534',
+                  borderRadius: '8px', fontSize: '13px', color: '#86efac'
+                }}>
+                  {registerResult}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ============ HISTORY TAB ============ */}
+        {activeTab === 'history' && (
+          <div>
+            <div style={{ marginBottom: '16px' }}>
+              <select
+                value={selectedStudent}
+                onChange={(e) => {
+                  setSelectedStudent(e.target.value)
+                  const s = students.find(s => s.user_id === e.target.value)
+                  if (s) loadHistory(s.student_name)
+                }}
+                style={{
+                  width: '100%', padding: '12px 16px', background: '#111118',
+                  border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
+                  fontSize: '14px', fontFamily: 'inherit'
+                }}
+              >
+                <option value="">-- Select student to view history --</option>
+                {students.map(s => (
+                  <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
+                ))}
+              </select>
+            </div>
+
+            {lessons.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#444' }}>
+                {selectedStudent ? 'No lessons imported yet for this student.' : 'Select a student above.'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {lessons.map(lesson => (
+                  <div
+                    key={lesson.id}
+                    style={{
+                      padding: '16px 20px',
+                      background: '#111118',
+                      border: '1px solid #1a1a2e',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontWeight: 700, color: '#fff' }}>
+                        Lesson {lesson.lesson_number}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#666' }}>
+                        {lesson.lesson_date}
+                      </span>
+                    </div>
+                    {lesson.summary && (
+                      <p style={{ fontSize: '13px', color: '#888', margin: '0 0 8px', lineHeight: '1.5' }}>
+                        {lesson.summary.substring(0, 200)}{lesson.summary.length > 200 ? '...' : ''}
+                      </p>
+                    )}
+                    <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
+                      {lesson.vocabulary && (
+                        <span style={{ color: '#4ade80' }}>
+                          📚 {Array.isArray(lesson.vocabulary) ? lesson.vocabulary.length : 0} vocab items
+                        </span>
+                      )}
+                      {lesson.analysis?.struggles && (
+                        <span style={{ color: '#fbbf24' }}>
+                          ⚠️ {lesson.analysis.struggles.length} struggles
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+</file>
+
 <file path="app/dashboard/nikud/page.tsx">
 'use client';
 
@@ -6713,64 +7776,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
-}
-</file>
-
-<file path="app/upload-lesson/page.tsx">
-"use client"
-import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-export default function UploadLesson() {
-  const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState('')
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploading(true)
-    setMessage('⏳ מעלה...')
-
-    try {
-      const fileName = `${Date.now()}-${file.name}`
-      
-      const { error } = await supabase.storage
-        .from('lessons')
-        .upload(fileName, file)
-
-      if (error) throw error
-
-      setMessage('✅ הקובץ הועלה!')
-      setTimeout(() => alert('בדוק ב-Table Editor'), 2000)
-
-    } catch (error: any) {
-      setMessage(`❌ ${error.message}`)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', direction: 'rtl', backgroundColor: '#f5f5f5' }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxWidth: '500px', width: '100%' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '30px', textAlign: 'center' }}>העלאת שיעור</h1>
-        
-        <label style={{ display: 'block', border: '2px dashed #ccc', borderRadius: '10px', padding: '40px', cursor: uploading ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
-          <input type="file" accept="audio/*,video/*" onChange={handleUpload} disabled={uploading} style={{ display: 'none' }} />
-          <div style={{ fontSize: '60px' }}>📤</div>
-          <div style={{ fontSize: '20px', marginTop: '10px' }}>{uploading ? '⏳ מעלה...' : 'לחץ לבחירת קובץ'}</div>
-        </label>
-
-        {message && <div style={{ marginTop: '20px', padding: '15px', borderRadius: '8px', backgroundColor: message.includes('✅') ? '#d4edda' : '#f8d7da', color: message.includes('✅') ? '#155724' : '#721c24' }}>{message}</div>}
-      </div>
-    </div>
-  )
 }
 </file>
 

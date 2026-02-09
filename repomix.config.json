@@ -1,0 +1,19 @@
+{
+    "output": {
+      "filePath": "repomix-output.xml"
+    },
+    "ignore": {
+      "customPatterns": [
+        "full_code.txt",
+        "project_code.txt",
+        "*.old",
+        "*.backup",
+        "repomix-output.xml",
+        "node_modules/**",
+        ".next/**",
+        ".git/**",
+        "*.log"
+      ]
+    }
+  }
+  

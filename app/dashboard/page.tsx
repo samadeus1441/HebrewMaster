@@ -4,6 +4,14 @@ import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import Link from 'next/link';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { getLevelFromXP, getNextLevel } from '@/lib/xp-system';
+
+interface UserProfile {
+  xp: number;
+  level: number;
+  streak: number;
+  total_reviews: number;
+}
 
 interface DashboardStats {
   totalCards: number;
@@ -27,7 +35,7 @@ export default function DashboardPage() {
     streak: 0,
     level: 1,
     levelName: 'אָלֶף',
-    xp: 10,
+    xp: 0,
     nextLevelXP: 100,
   });
   const [recentLessons, setRecentLessons] = useState<any[]>([]);
@@ -49,6 +57,30 @@ export default function DashboardPage() {
       if (!user) return;
 
       setUserEmail(user.email || '');
+
+      // Get or create user profile
+      let { data: profile } = await supabase
+        .from('user_profiles')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (!profile) {
+        const { data: newProfile } = await supabase
+          .from('user_profiles')
+          .insert({
+            user_id: user.id,
+            xp: 0,
+            level: 1,
+            streak: 0,
+          })
+          .select()
+          .single();
+        profile = newProfile;
+      }
+
+      const currentLevel = getLevelFromXP(profile?.xp || 0);
+      const nextLevel = getNextLevel(currentLevel.level);
 
       // Fetch cards stats
       const { data: cards } = await supabase
@@ -74,11 +106,11 @@ export default function DashboardPage() {
         dueCards: dueCards.length,
         lessonsCompleted: lessons?.length || 0,
         wordsLearned: cards?.length || 0,
-        streak: 2,
-        level: 1,
-        levelName: 'אָלֶף',
-        xp: 10,
-        nextLevelXP: 100,
+        streak: profile?.streak || 0,
+        level: currentLevel.level,
+        levelName: currentLevel.name,
+        xp: profile?.xp || 0,
+        nextLevelXP: nextLevel.xpRequired,
       });
     } catch (err) {
       console.error('Error:', err);
@@ -87,7 +119,7 @@ export default function DashboardPage() {
     }
   };
 
-  const progressPercentage = (stats.xp / stats.nextLevelXP) * 100;
+  const progressPercentage = ((stats.xp / stats.nextLevelXP) * 100) || 0;
 
   if (loading) {
     return (
@@ -110,7 +142,6 @@ export default function DashboardPage() {
 
         {/* Stats Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {/* Lessons Completed */}
           <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-indigo-100">
             <div className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">
               Lessons Complete
@@ -121,7 +152,6 @@ export default function DashboardPage() {
             <div className="text-slate-500 text-sm">Keep going!</div>
           </div>
 
-          {/* Words Learned */}
           <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-amber-100">
             <div className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-2">
               Words Learned
@@ -132,7 +162,6 @@ export default function DashboardPage() {
             <div className="text-slate-500 text-sm">Your vocabulary</div>
           </div>
 
-          {/* Streak */}
           <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-orange-100">
             <div className="text-sm font-bold text-orange-600 uppercase tracking-wider mb-2">
               Day Streak
@@ -143,7 +172,6 @@ export default function DashboardPage() {
             <div className="text-slate-500 text-sm">Days in a row</div>
           </div>
 
-          {/* Level */}
           <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 shadow-lg text-white">
             <div className="text-sm font-bold uppercase tracking-wider mb-2 opacity-90">
               Your Level
@@ -161,7 +189,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-2xl font-black text-slate-900">Progress to Next Level</h2>
               <p className="text-slate-600">
-                {stats.xp} / {stats.nextLevelXP} XP to reach <span dir="rtl" className="font-bold">בֵּית</span>
+                {stats.xp} / {stats.nextLevelXP} XP to reach Level {stats.level + 1}
               </p>
             </div>
             <div className="text-4xl font-black text-indigo-600">

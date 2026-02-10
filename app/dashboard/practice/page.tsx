@@ -5,6 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { useLanguage } from '@/app/context/LanguageContext';
+import { XP_REWARDS } from '@/lib/xp-system';
 
 interface Card {
   id: string;
@@ -27,6 +28,7 @@ export default function PracticePage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [sessionXP, setSessionXP] = useState(0);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,7 +44,6 @@ export default function PracticePage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Fetch all cards
       const { data: cardsData } = await supabase
         .from('srs_cards')
         .select('*')
@@ -52,7 +53,6 @@ export default function PracticePage() {
       setAllCards(cardsData || []);
       setFilteredCards(cardsData || []);
 
-      // Fetch lessons
       const { data: lessonsData } = await supabase
         .from('lessons')
         .select('lesson_number, lesson_date, vocabulary')
@@ -100,14 +100,52 @@ export default function PracticePage() {
     }
   };
 
-  const handleRating = () => {
+  const awardXP = async (xpAmount: number) => {
+    try {
+      const response = await fetch('/api/award-xp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ xpAmount }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSessionXP(prev => prev + xpAmount);
+        
+        if (data.leveledUp) {
+          confetti({ particleCount: 300, spread: 120 });
+          setTimeout(() => {
+            alert(`🎉 LEVEL UP! You reached ${data.newLevel}!`);
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('XP award error:', error);
+    }
+  };
+
+  const handleRating = async (rating: 'again' | 'hard' | 'good' | 'easy') => {
+    const xpMap = {
+      again: XP_REWARDS.FLASHCARD_AGAIN,
+      hard: XP_REWARDS.FLASHCARD_HARD,
+      good: XP_REWARDS.FLASHCARD_GOOD,
+      easy: XP_REWARDS.FLASHCARD_EASY,
+    };
+
+    await awardXP(xpMap[rating]);
+
     if (currentIndex < filteredCards.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setIsFlipped(false);
     } else {
       confetti({ particleCount: 200, spread: 90 });
+      setTimeout(() => {
+        alert(`🎉 Session complete! You earned ${sessionXP + xpMap[rating]} XP!`);
+      }, 500);
       setCurrentIndex(0);
       setIsFlipped(false);
+      setSessionXP(0);
     }
   };
 
@@ -134,7 +172,7 @@ export default function PracticePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        {/* Header with Filter */}
+        {/* Header with Filter and XP */}
         <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg">
           <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
             <div>
@@ -142,6 +180,11 @@ export default function PracticePage() {
               <p className="text-slate-600 mt-1">
                 Card {currentIndex + 1} of {filteredCards.length}
               </p>
+              {sessionXP > 0 && (
+                <p className="text-indigo-600 font-bold mt-1">
+                  ⭐ Session XP: +{sessionXP}
+                </p>
+              )}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -230,28 +273,28 @@ export default function PracticePage() {
             className="grid grid-cols-2 md:grid-cols-4 gap-4"
           >
             <button
-              onClick={handleRating}
+              onClick={() => handleRating('again')}
               className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              Again
+              Again<br/>+{XP_REWARDS.FLASHCARD_AGAIN} XP
             </button>
             <button
-              onClick={handleRating}
+              onClick={() => handleRating('hard')}
               className="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              Hard
+              Hard<br/>+{XP_REWARDS.FLASHCARD_HARD} XP
             </button>
             <button
-              onClick={handleRating}
+              onClick={() => handleRating('good')}
               className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              Good
+              Good<br/>+{XP_REWARDS.FLASHCARD_GOOD} XP
             </button>
             <button
-              onClick={handleRating}
+              onClick={() => handleRating('easy')}
               className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              Easy
+              Easy<br/>+{XP_REWARDS.FLASHCARD_EASY} XP
             </button>
           </motion.div>
         )}

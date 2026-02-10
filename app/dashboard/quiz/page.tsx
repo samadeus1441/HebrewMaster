@@ -81,6 +81,47 @@ export default function QuizPage() {
     }
   };
 
+  const playSound = (type: 'correct' | 'wrong') => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    if (type === 'correct') {
+      // Success sound - cheerful beep
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+      
+      // Second beep
+      setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 1000;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        osc2.start(audioContext.currentTime);
+        osc2.stop(audioContext.currentTime + 0.2);
+      }, 100);
+    } else {
+      // Error sound - lower tone
+      oscillator.frequency.value = 200;
+      oscillator.type = 'sawtooth';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.4);
+    }
+  };
+
   const awardXP = async (xpAmount: number) => {
     try {
       const response = await fetch('/api/award-xp', {
@@ -117,9 +158,11 @@ export default function QuizPage() {
     if (correct) {
       setScore(score + 1);
       await awardXP(XP_REWARDS.QUIZ_CORRECT);
+      playSound('correct');
       confetti({ particleCount: 50, spread: 60 });
     } else {
       await awardXP(XP_REWARDS.QUIZ_WRONG);
+      playSound('wrong');
     }
   };
 

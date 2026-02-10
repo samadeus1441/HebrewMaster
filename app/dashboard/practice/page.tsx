@@ -1,182 +1,273 @@
-'use client'
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { createClient } from '@/lib/supabase-client'
+'use client';
 
-const supabase = createClient()
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
+import { useLanguage } from '@/app/context/LanguageContext';
+
+interface Card {
+  id: string;
+  front: string;
+  back: string;
+  transliteration?: string;
+  source?: string;
+  stability: number;
+  difficulty: number;
+  state: number;
+  reps: number;
+}
+
+interface Lesson {
+  lesson_number: number;
+  lesson_date: string;
+  vocabulary: any[];
+}
 
 export default function PracticePage() {
-  const [words, setWords] = useState<any[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isFlipped, setIsFlipped] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [sessionComplete, setSessionComplete] = useState(false)
+  const { t } = useLanguage();
+  const [cards, setCards] = useState<Card[]>([]);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [selectedLesson, setSelectedLesson] = useState<string>('all');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
 
   useEffect(() => {
-    loadSession()
-  }, [])
+    fetchData();
+  }, []);
 
-  async function loadSession() {
-    setLoading(true)
-    
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    console.log('🔑 Current user ID:', user?.id)
-    console.log('📧 Current user email:', user?.email)
-    
-    if (!user) {
-      console.log('❌ No user logged in')
-      setLoading(false)
-      return
+  useEffect(() => {
+    filterCards();
+  }, [selectedLesson]);
+
+  const fetchData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Fetch all cards
+      const { data: cardsData } = await supabase
+        .from('srs_cards')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      setCards(cardsData || []);
+
+      // Fetch lessons for filter
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select('lesson_number, lesson_date, vocabulary')
+        .eq('student_user_id', user.id)
+        .order('lesson_number', { ascending: false });
+
+      setLessons(lessonsData || []);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
     }
-    
-    // Query srs_cards for THIS user's personalized vocabulary
-    console.log('🔍 Querying srs_cards for user_id:', user.id)
-    const { data, error } = await supabase
+  };
+
+  const filterCards = async () => {
+    if (selectedLesson === 'all') {
+      fetchData();
+      return;
+    }
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    // Get vocabulary from selected lesson
+    const lesson = lessons.find(l => l.lesson_number.toString() === selectedLesson);
+    if (!lesson) return;
+
+    const lessonWords = lesson.vocabulary.map((v: any) => v.front);
+
+    // Filter cards that match lesson vocabulary
+    const { data: filtered } = await supabase
       .from('srs_cards')
       .select('*')
       .eq('user_id', user.id)
-      .eq('source', 'lesson')
-      .order('created_at', { ascending: false })
-      .limit(25)
-      
-    console.log('📊 Query result:', data)
-    console.log('❌ Query error:', error)
+      .in('front', lessonWords);
 
-    if (data && data.length > 0) {
-      setWords(data)
-      console.log('✅ Loaded', data.length, 'personalized cards')
-    } else {
-      console.log('⚠️ No cards found for this user')
+    setCards(filtered || []);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  };
+
+  const playAudio = async (text: string) => {
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const blob = await response.blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      audio.play();
+    } catch (error) {
+      console.error('Audio error:', error);
     }
-    setLoading(false)
-  }
+  };
 
-  const handleRating = async (rating: string) => {
-    // Navigate to next card
-    if (currentIndex < words.length - 1) {
-      setIsFlipped(false)
-      setCurrentIndex(prev => prev + 1)
+  const handleRating = async (rating: number) => {
+    // FSRS logic here (keep existing implementation)
+    if (currentIndex < cards.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setIsFlipped(false);
     } else {
-      setSessionComplete(true)
+      confetti({ particleCount: 200, spread: 90 });
     }
-  }
-
-  const playAudio = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'he-IL'
-    window.speechSynthesis.speak(utterance)
-  }
+  };
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white font-bold text-slate-400">
-        Loading...
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-2xl font-bold text-slate-400">Loading...</div>
       </div>
-    )
+    );
   }
 
-  if (sessionComplete) {
+  if (cards.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
-        <div className="text-8xl mb-6">🎉</div>
-        <h1 className="text-4xl font-black text-slate-900 mb-2">Session Complete!</h1>
-        <p className="text-slate-500 mb-8">Great job practicing!</p>
-        <button
-          onClick={() => window.location.href = '/dashboard'}
-          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-        >
-          Back to Dashboard
-        </button>
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="text-4xl mb-4">📚</div>
+        <div className="text-2xl font-bold text-slate-700">No cards yet!</div>
+        <div className="text-slate-500">Complete a lesson to start practicing</div>
       </div>
-    )
+    );
   }
 
-  if (words.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
-        <div className="text-8xl mb-6">📚</div>
-        <h1 className="text-4xl font-black text-slate-900 mb-2">No cards yet!</h1>
-        <p className="text-slate-500 mb-8">Your teacher needs to import a lesson first.</p>
-        <button
-          onClick={() => window.location.href = '/dashboard'}
-          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-        >
-          Back to Dashboard
-        </button>
-      </div>
-    )
-  }
-
-  const currentWord = words[currentIndex]
+  const currentCard = cards[currentIndex];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6" dir="ltr">
-      {/* Progress bar */}
-      <div className="w-full max-w-md mb-8 h-2 bg-slate-200 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-indigo-500 transition-all duration-500"
-          style={{ width: `${((currentIndex + 1) / words.length) * 100}%` }}
-        />
-      </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header with Filter */}
+        <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-black text-slate-900 mb-2">🃏 {t('practice.title')}</h1>
+            <p className="text-slate-600">
+              Card {currentIndex + 1} of {cards.length}
+            </p>
+          </div>
 
-      {/* Flashcard */}
-      <div className="w-full max-w-md aspect-[4/5] relative perspective-1000">
-        <AnimatePresence mode="wait">
-          {!isFlipped ? (
-            <motion.div
-              key="front"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col items-center justify-center cursor-pointer"
-              onClick={() => setIsFlipped(true)}
+          {/* Lesson Filter */}
+          <div className="flex items-center gap-3">
+            <label className="text-sm font-semibold text-slate-700">Filter by lesson:</label>
+            <select
+              value={selectedLesson}
+              onChange={(e) => setSelectedLesson(e.target.value)}
+              className="px-4 py-2 bg-white border-2 border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             >
-              <p className="text-sm text-slate-400 mb-4">{currentIndex + 1} / {words.length}</p>
-              <h2 className="text-6xl font-black text-slate-900 mb-4" dir="rtl">{currentWord.front}</h2>
-              <p className="text-indigo-600 italic">{currentWord.transliteration}</p>
-              <p className="text-slate-400 mt-8 text-sm">Tap to reveal</p>
-              <button
-                onClick={(e) => { e.stopPropagation(); playAudio(currentWord.front) }}
-                className="mt-4 text-2xl"
-              >
-                🔊
-              </button>
-            </motion.div>
-          ) : (
+              <option value="all">All Lessons</option>
+              {lessons.map((lesson) => (
+                <option key={lesson.lesson_number} value={lesson.lesson_number}>
+                  Lesson {lesson.lesson_number} ({new Date(lesson.lesson_date).toLocaleDateString()})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Flashcard */}
+        <motion.div
+          className="relative w-full h-96 mb-8 cursor-pointer"
+          onClick={() => setIsFlipped(!isFlipped)}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <AnimatePresence mode="wait">
             <motion.div
-              key="back"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col"
+              key={isFlipped ? 'back' : 'front'}
+              initial={{ rotateY: 90, opacity: 0 }}
+              animate={{ rotateY: 0, opacity: 1 }}
+              exit={{ rotateY: -90, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center p-8 border-4 border-indigo-100"
             >
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <h3 className="text-4xl font-bold text-slate-900 mb-2">{currentWord.back}</h3>
-                <p className="text-slate-500 mb-4">{currentWord.category}</p>
-                <p className="text-2xl text-slate-700" dir="rtl">{currentWord.front}</p>
-              </div>
-              
-              {/* Rating buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                {['Again', 'Hard', 'Good', 'Easy'].map(rating => (
-                  <button
-                    key={rating}
-                    onClick={() => handleRating(rating)}
-                    className={`py-3 rounded-xl font-bold text-sm transition-all ${
-                      rating === 'Again' ? 'bg-red-100 text-red-600 hover:bg-red-200' :
-                      rating === 'Hard' ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' :
-                      rating === 'Good' ? 'bg-green-100 text-green-600 hover:bg-green-200' :
-                      'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                    }`}
-                  >
-                    {rating}
-                  </button>
-                ))}
-              </div>
+              {!isFlipped ? (
+                <>
+                  <div className="text-7xl font-black text-slate-900 mb-4" dir="rtl">
+                    {currentCard.front}
+                  </div>
+                  {currentCard.transliteration && (
+                    <div className="text-2xl text-indigo-600 italic font-semibold">
+                      {currentCard.transliteration}
+                    </div>
+                  )}
+                  <div className="mt-8 text-slate-400 text-sm">Tap to reveal</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-5xl font-bold text-slate-700 mb-4">
+                    {currentCard.back}
+                  </div>
+                  <div className="text-3xl text-slate-900 mb-6" dir="rtl">
+                    {currentCard.front}
+                  </div>
+                  {currentCard.transliteration && (
+                    <div className="text-xl text-indigo-600 italic">
+                      {currentCard.transliteration}
+                    </div>
+                  )}
+                </>
+              )}
             </motion.div>
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Audio Button */}
+        <div className="flex justify-center mb-8">
+          <button
+            onClick={() => playAudio(currentCard.front)}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all flex items-center gap-3"
+          >
+            🔊 {t('practice.listen')}
+          </button>
+        </div>
+
+        {/* Rating Buttons */}
+        {isFlipped && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          >
+            <button
+              onClick={() => handleRating(1)}
+              className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              {t('practice.again')}
+            </button>
+            <button
+              onClick={() => handleRating(2)}
+              className="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              {t('practice.hard')}
+            </button>
+            <button
+              onClick={() => handleRating(3)}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              {t('practice.good')}
+            </button>
+            <button
+              onClick={() => handleRating(4)}
+              className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              {t('practice.easy')}
+            </button>
+          </motion.div>
+        )}
       </div>
     </div>
-  )
+  );
 }

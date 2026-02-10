@@ -56,11 +56,11 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      // Get user profile with first name
+      // Get user profile with first name - FIXED: changed user_id to id
       const { data: profileData } = await supabase
         .from('profiles')
         .select('first_name')
-        .eq('user_id', user.id)
+        .eq('id', user.id)  // ✅ CHANGED FROM user_id TO id
         .single();
 
       const displayName = profileData?.first_name || user.email?.split('@')[0] || 'Student';

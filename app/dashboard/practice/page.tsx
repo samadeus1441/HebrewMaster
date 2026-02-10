@@ -18,16 +18,11 @@ interface Card {
   reps: number;
 }
 
-interface Lesson {
-  lesson_number: number;
-  lesson_date: string;
-  vocabulary: any[];
-}
-
 export default function PracticePage() {
   const { t } = useLanguage();
-  const [cards, setCards] = useState<Card[]>([]);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [allCards, setAllCards] = useState<Card[]>([]);
+  const [filteredCards, setFilteredCards] = useState<Card[]>([]);
+  const [lessons, setLessons] = useState<any[]>([]);
   const [selectedLesson, setSelectedLesson] = useState<string>('all');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
@@ -42,10 +37,6 @@ export default function PracticePage() {
     fetchData();
   }, []);
 
-  useEffect(() => {
-    filterCards();
-  }, [selectedLesson]);
-
   const fetchData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -58,9 +49,10 @@ export default function PracticePage() {
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
 
-      setCards(cardsData || []);
+      setAllCards(cardsData || []);
+      setFilteredCards(cardsData || []);
 
-      // Fetch lessons for filter
+      // Fetch lessons
       const { data: lessonsData } = await supabase
         .from('lessons')
         .select('lesson_number, lesson_date, vocabulary')
@@ -75,31 +67,22 @@ export default function PracticePage() {
     }
   };
 
-  const filterCards = async () => {
-    if (selectedLesson === 'all') {
-      fetchData();
+  const handleLessonFilter = (lessonNum: string) => {
+    setSelectedLesson(lessonNum);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+
+    if (lessonNum === 'all') {
+      setFilteredCards(allCards);
       return;
     }
 
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    // Get vocabulary from selected lesson
-    const lesson = lessons.find(l => l.lesson_number.toString() === selectedLesson);
+    const lesson = lessons.find(l => l.lesson_number.toString() === lessonNum);
     if (!lesson) return;
 
     const lessonWords = lesson.vocabulary.map((v: any) => v.front);
-
-    // Filter cards that match lesson vocabulary
-    const { data: filtered } = await supabase
-      .from('srs_cards')
-      .select('*')
-      .eq('user_id', user.id)
-      .in('front', lessonWords);
-
-    setCards(filtered || []);
-    setCurrentIndex(0);
-    setIsFlipped(false);
+    const filtered = allCards.filter(card => lessonWords.includes(card.front));
+    setFilteredCards(filtered);
   };
 
   const playAudio = async (text: string) => {
@@ -117,13 +100,14 @@ export default function PracticePage() {
     }
   };
 
-  const handleRating = async (rating: number) => {
-    // FSRS logic here (keep existing implementation)
-    if (currentIndex < cards.length - 1) {
+  const handleRating = () => {
+    if (currentIndex < filteredCards.length - 1) {
       setCurrentIndex(currentIndex + 1);
       setIsFlipped(false);
     } else {
       confetti({ particleCount: 200, spread: 90 });
+      setCurrentIndex(0);
+      setIsFlipped(false);
     }
   };
 
@@ -135,7 +119,7 @@ export default function PracticePage() {
     );
   }
 
-  if (cards.length === 0) {
+  if (filteredCards.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
         <div className="text-4xl mb-4">📚</div>
@@ -145,35 +129,36 @@ export default function PracticePage() {
     );
   }
 
-  const currentCard = cards[currentIndex];
+  const currentCard = filteredCards[currentIndex];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
         {/* Header with Filter */}
-        <div className="mb-8 flex flex-col md:flex-row gap-4 items-center justify-between">
-          <div>
-            <h1 className="text-4xl font-black text-slate-900 mb-2">🃏 {t('practice.title')}</h1>
-            <p className="text-slate-600">
-              Card {currentIndex + 1} of {cards.length}
-            </p>
-          </div>
+        <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900">🃏 Flashcards</h1>
+              <p className="text-slate-600 mt-1">
+                Card {currentIndex + 1} of {filteredCards.length}
+              </p>
+            </div>
 
-          {/* Lesson Filter */}
-          <div className="flex items-center gap-3">
-            <label className="text-sm font-semibold text-slate-700">Filter by lesson:</label>
-            <select
-              value={selectedLesson}
-              onChange={(e) => setSelectedLesson(e.target.value)}
-              className="px-4 py-2 bg-white border-2 border-slate-200 rounded-xl font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-            >
-              <option value="all">All Lessons</option>
-              {lessons.map((lesson) => (
-                <option key={lesson.lesson_number} value={lesson.lesson_number}>
-                  Lesson {lesson.lesson_number} ({new Date(lesson.lesson_date).toLocaleDateString()})
-                </option>
-              ))}
-            </select>
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold text-slate-700">Filter by lesson:</label>
+              <select
+                value={selectedLesson}
+                onChange={(e) => handleLessonFilter(e.target.value)}
+                className="px-6 py-3 bg-indigo-50 border-2 border-indigo-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">📚 All Lessons ({allCards.length} cards)</option>
+                {lessons.map((lesson) => (
+                  <option key={lesson.lesson_number} value={lesson.lesson_number}>
+                    Lesson {lesson.lesson_number} - {new Date(lesson.lesson_date).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -227,10 +212,13 @@ export default function PracticePage() {
         {/* Audio Button */}
         <div className="flex justify-center mb-8">
           <button
-            onClick={() => playAudio(currentCard.front)}
+            onClick={(e) => {
+              e.stopPropagation();
+              playAudio(currentCard.front);
+            }}
             className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all flex items-center gap-3"
           >
-            🔊 {t('practice.listen')}
+            🔊 Listen
           </button>
         </div>
 
@@ -242,28 +230,28 @@ export default function PracticePage() {
             className="grid grid-cols-2 md:grid-cols-4 gap-4"
           >
             <button
-              onClick={() => handleRating(1)}
+              onClick={handleRating}
               className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              {t('practice.again')}
+              Again
             </button>
             <button
-              onClick={() => handleRating(2)}
+              onClick={handleRating}
               className="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              {t('practice.hard')}
+              Hard
             </button>
             <button
-              onClick={() => handleRating(3)}
+              onClick={handleRating}
               className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              {t('practice.good')}
+              Good
             </button>
             <button
-              onClick={() => handleRating(4)}
+              onClick={handleRating}
               className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
             >
-              {t('practice.easy')}
+              Easy
             </button>
           </motion.div>
         )}

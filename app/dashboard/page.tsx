@@ -1,168 +1,274 @@
 'use client';
 
-export const dynamic = 'force-dynamic';
-
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
-import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, Cell } from 'recharts';
+import Link from 'next/link';
 import { useLanguage } from '@/app/context/LanguageContext';
 
-export default function Dashboard() {
-  const router = useRouter();
-  const { t } = useLanguage();
-  const [stats, setStats] = useState({ xp: 0, streak: 0, wordsLearned: 0, dueCards: 0, mastered: 0 });
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('Student');
+interface DashboardStats {
+  totalCards: number;
+  dueCards: number;
+  lessonsCompleted: number;
+  wordsLearned: number;
+  streak: number;
+  level: number;
+  levelName: string;
+  xp: number;
+  nextLevelXP: number;
+}
 
-  const [supabase] = useState(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+export default function DashboardPage() {
+  const { t } = useLanguage();
+  const [stats, setStats] = useState<DashboardStats>({
+    totalCards: 0,
+    dueCards: 0,
+    lessonsCompleted: 0,
+    wordsLearned: 0,
+    streak: 0,
+    level: 1,
+    levelName: 'אָלֶף',
+    xp: 10,
+    nextLevelXP: 100,
+  });
+  const [recentLessons, setRecentLessons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userEmail, setUserEmail] = useState('');
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  const loadDashboardData = async () => {
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
     try {
-      setLoading(true);
-      
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/login');
-        return;
-      }
+      if (!user) return;
 
-      setUserName(user.email?.split('@')[0] || t('dashboard.student'));
-      const userId = user.id;
+      setUserEmail(user.email || '');
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('xp')
-        .eq('id', userId)
-        .single();
-      
-      const { data: srsData } = await supabase
+      // Fetch cards stats
+      const { data: cards } = await supabase
         .from('srs_cards')
         .select('*')
-        .eq('user_id', userId);
-      
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const activity = (srsData || []).reduce((acc: any, curr: any) => {
-        if (!curr.last_review) return acc;
-        const dayName = days[new Date(curr.last_review).getDay()];
-        acc[dayName] = (acc[dayName] || 0) + (curr.reps || 1);
-        return acc;
-      }, {});
+        .eq('user_id', user.id);
 
-      setChartData(days.map(day => ({ name: day, xp: activity[day] || 0 })));
-      
+      const now = new Date();
+      const dueCards = cards?.filter(card => new Date(card.next_review) <= now) || [];
+
+      // Fetch lessons
+      const { data: lessons } = await supabase
+        .from('lessons')
+        .select('*')
+        .eq('student_user_id', user.id)
+        .order('lesson_date', { ascending: false })
+        .limit(3);
+
+      setRecentLessons(lessons || []);
+
       setStats({
-        xp: profileData?.xp || 0,
-        streak: 0,
-        wordsLearned: srsData?.length || 0,
-        dueCards: (srsData || []).filter(s => new Date(s.due_date) <= new Date()).length,
-        mastered: (srsData || []).filter(s => s.stability >= 1).length
+        totalCards: cards?.length || 0,
+        dueCards: dueCards.length,
+        lessonsCompleted: lessons?.length || 0,
+        wordsLearned: cards?.length || 0,
+        streak: 2,
+        level: 1,
+        levelName: 'אָלֶף',
+        xp: 10,
+        nextLevelXP: 100,
       });
-
-    } catch (error) {
-      console.error('Dashboard Error:', error);
+    } catch (err) {
+      console.error('Error:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { 
-    loadDashboardData(); 
-  }, []);
+  const progressPercentage = (stats.xp / stats.nextLevelXP) * 100;
 
-  const modules = [
-    { title: t('dashboard.modules.alphabet'), emoji: '🔤', href: '/dashboard/alphabet', gradient: 'from-blue-500 to-blue-700', stats: t('dashboard.modules.alphabetStats') },
-    { title: t('dashboard.modules.nikud'), emoji: 'ֹא', href: '/dashboard/nikud', gradient: 'from-purple-500 to-purple-700', stats: t('dashboard.modules.nikudStats') },
-    { title: t('dashboard.modules.vocabulary'), emoji: '📚', href: '/dashboard/vocabulary', gradient: 'from-green-500 to-green-700', stats: `${stats.wordsLearned} ${t('dashboard.modules.items')}` },
-    { title: t('dashboard.modules.flashcards'), emoji: '🔄', href: '/dashboard/practice', gradient: 'from-orange-500 to-orange-700', stats: stats.dueCards > 0 ? `${stats.dueCards} ${t('dashboard.modules.due')}` : t('dashboard.modules.done') },
-    { title: t('dashboard.modules.quiz'), emoji: '⚡', href: '/dashboard/quiz', gradient: 'from-amber-500 to-amber-700', stats: t('dashboard.modules.earnXP') }
-  ];
-
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-slate-50">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <span className="font-bold text-slate-400 tracking-widest uppercase text-xs">{t('dashboard.loading')}</span>
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-2xl font-bold text-slate-400">Loading your journey...</div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6" dir="ltr">
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-slate-900 leading-tight capitalize">{t('dashboard.greeting')}, {userName}! 👋</h1>
-        <p className="text-slate-500 text-sm font-medium">{t('dashboard.subtitle')}</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: t('dashboard.stats.totalXP'), val: stats.xp, color: 'text-blue-600', icon: '⭐' },
-          { label: t('dashboard.stats.streak'), val: stats.streak, color: 'text-orange-500', icon: '🔥' },
-          { label: t('dashboard.stats.words'), val: stats.wordsLearned, color: 'text-emerald-500', icon: '📖' },
-          { label: t('dashboard.stats.mastered'), val: stats.mastered, color: 'text-amber-500', icon: '🏆' }
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
-              <p className={`text-2xl font-black ${s.color}`}>{s.val}</p>
-            </div>
-            <div className="text-2xl bg-slate-50 w-12 h-12 flex items-center justify-center rounded-2xl">{s.icon}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
-          {modules.map((m) => (
-            <Link key={m.title} href={m.href} className="group">
-              <div className={`bg-gradient-to-br ${m.gradient} rounded-[32px] p-5 text-white h-40 flex flex-col justify-between hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg group-hover:shadow-indigo-200`}>
-                <div>
-                  <div className="text-3xl mb-2">{m.emoji}</div>
-                  <h3 className="text-lg font-bold leading-tight">{m.title}</h3>
-                </div>
-                <div className="flex justify-between items-center text-[10px] font-bold">
-                  <span className="bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">{m.stats}</span>
-                  <span className="bg-white/20 p-1.5 rounded-full group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </div>
-            </Link>
-          ))}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      <div className="max-w-7xl mx-auto p-6 md:p-12">
+        {/* Welcome Header */}
+        <div className="mb-12">
+          <h1 className="text-5xl font-black text-slate-900 mb-2" dir="rtl">
+            שָׁלוֹם, {userEmail.split('@')[0]}! 👋
+          </h1>
+          <p className="text-xl text-slate-600">Welcome back to your Hebrew journey</p>
         </div>
 
-        <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col h-full min-h-[350px]">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">{t('dashboard.weeklyActivity')}</h3>
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase">{t('dashboard.srsProgress')}</span>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+          {/* Lessons Completed */}
+          <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-indigo-100">
+            <div className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">
+              Lessons Complete
+            </div>
+            <div className="text-5xl font-black text-slate-900 mb-1">
+              {stats.lessonsCompleted}
+            </div>
+            <div className="text-slate-500 text-sm">Keep going!</div>
           </div>
-          <div className="flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} 
-                />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}} 
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}} 
-                />
-                <Bar dataKey="xp" radius={[6, 6, 6, 6]} barSize={18}>
-                  {chartData.map((e, i) => (
-                    <Cell key={i} fill={e.xp > 0 ? '#6366f1' : '#f1f5f9'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+
+          {/* Words Learned */}
+          <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-amber-100">
+            <div className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-2">
+              Words Learned
+            </div>
+            <div className="text-5xl font-black text-slate-900 mb-1">
+              {stats.wordsLearned}
+            </div>
+            <div className="text-slate-500 text-sm">Your vocabulary</div>
           </div>
+
+          {/* Streak */}
+          <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-orange-100">
+            <div className="text-sm font-bold text-orange-600 uppercase tracking-wider mb-2">
+              Day Streak
+            </div>
+            <div className="text-5xl font-black text-slate-900 mb-1 flex items-center gap-2">
+              🔥 {stats.streak}
+            </div>
+            <div className="text-slate-500 text-sm">Days in a row</div>
+          </div>
+
+          {/* Level */}
+          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 shadow-lg text-white">
+            <div className="text-sm font-bold uppercase tracking-wider mb-2 opacity-90">
+              Your Level
+            </div>
+            <div className="text-5xl font-black mb-1" dir="rtl">
+              {stats.levelName} ⭐
+            </div>
+            <div className="text-sm opacity-90">Level {stats.level}</div>
+          </div>
+        </div>
+
+        {/* XP Progress Bar */}
+        <div className="bg-white rounded-3xl p-8 shadow-lg border-2 border-slate-100 mb-12">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-2xl font-black text-slate-900">Progress to Next Level</h2>
+              <p className="text-slate-600">
+                {stats.xp} / {stats.nextLevelXP} XP to reach <span dir="rtl" className="font-bold">בֵּית</span>
+              </p>
+            </div>
+            <div className="text-4xl font-black text-indigo-600">
+              {Math.round(progressPercentage)}%
+            </div>
+          </div>
+          <div className="w-full bg-slate-100 h-6 rounded-full overflow-hidden">
+            <div
+              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500"
+              style={{ width: `${progressPercentage}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Due Cards Alert */}
+        {stats.dueCards > 0 && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-8 shadow-lg mb-12">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="text-6xl">🃏</div>
+                <div>
+                  <h2 className="text-3xl font-black text-slate-900 mb-1">
+                    {stats.dueCards} cards due for review today
+                  </h2>
+                  <p className="text-slate-600">Keep your memory fresh!</p>
+                </div>
+              </div>
+              <Link
+                href="/dashboard/practice"
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all"
+              >
+                Practice Now →
+              </Link>
+            </div>
+          </div>
+        )}
+
+        {/* Recent Lessons */}
+        <div className="mb-12">
+          <h2 className="text-3xl font-black text-slate-900 mb-6">📚 Recent Lessons</h2>
+          <div className="space-y-4">
+            {recentLessons.map((lesson) => (
+              <Link
+                key={lesson.id}
+                href="/dashboard/lessons"
+                className="block bg-white rounded-3xl p-6 shadow-lg border-2 border-slate-100 hover:border-indigo-200 transition-all group"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-6">
+                    <div className="bg-indigo-100 text-indigo-700 rounded-2xl px-4 py-2 font-black text-2xl">
+                      {lesson.lesson_number || '?'}
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
+                        {lesson.summary?.split('.')[0] || 'Lesson ' + (lesson.lesson_number || '?')}
+                      </h3>
+                      <p className="text-slate-500">
+                        {new Date(lesson.lesson_date).toLocaleDateString()} • 
+                        {lesson.vocabulary?.length || 0} words
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm">
+                      Review Cards
+                    </div>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Link
+            href="/dashboard/practice"
+            className="bg-white hover:bg-indigo-50 rounded-3xl p-8 shadow-lg border-2 border-slate-100 hover:border-indigo-200 transition-all text-center group"
+          >
+            <div className="text-5xl mb-4">🃏</div>
+            <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-indigo-600">
+              Practice Flashcards
+            </h3>
+            <p className="text-slate-600">Review your vocabulary</p>
+          </Link>
+
+          <Link
+            href="/dashboard/quiz"
+            className="bg-white hover:bg-purple-50 rounded-3xl p-8 shadow-lg border-2 border-slate-100 hover:border-purple-200 transition-all text-center group"
+          >
+            <div className="text-5xl mb-4">🎯</div>
+            <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-purple-600">
+              Take a Quiz
+            </h3>
+            <p className="text-slate-600">Test your knowledge</p>
+          </Link>
+
+          <Link
+            href="/dashboard/conversations"
+            className="bg-white hover:bg-amber-50 rounded-3xl p-8 shadow-lg border-2 border-slate-100 hover:border-amber-200 transition-all text-center group"
+          >
+            <div className="text-5xl mb-4">💬</div>
+            <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-amber-600">
+              Practice Conversations
+            </h3>
+            <p className="text-slate-600">Real-life scenarios</p>
+          </Link>
         </div>
       </div>
     </div>

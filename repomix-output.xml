@@ -53,6 +53,7 @@ app/api/tts/route.ts
 app/auth/callback/route.ts
 app/context/LanguageContext.tsx
 app/dashboard/alphabet/page.tsx
+app/dashboard/conversations/page.tsx
 app/dashboard/layout.tsx
 app/dashboard/nikud/page.tsx
 app/dashboard/page.tsx
@@ -81,6 +82,7 @@ hooks/useLocale.ts
 hooks/useStudySession.ts
 lib/fsrs.ts
 lib/seed-vocab.ts
+lib/supabase-client.ts
 lib/supabase.ts
 messages/en.json
 messages/fr.json
@@ -107,6 +109,51 @@ types/database.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path=".eslintrc.json">
+{
+  "extends": "next/core-web-vitals"
+}
+</file>
+
+<file path=".gitignore">
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+</file>
 
 <file path="app/admin/page.tsx.old">
 "use client"
@@ -164,72 +211,6 @@ export default function UploadLesson() {
     </div>
   )
 }
-</file>
-
-<file path="repomix.config.json">
-{
-    "output": {
-      "filePath": "repomix-output.xml"
-    },
-    "ignore": {
-      "customPatterns": [
-        "full_code.txt",
-        "project_code.txt",
-        "*.old",
-        "*.backup",
-        "repomix-output.xml",
-        "node_modules/**",
-        ".next/**",
-        ".git/**",
-        "*.log"
-      ]
-    }
-  }
-</file>
-
-<file path=".eslintrc.json">
-{
-  "extends": "next/core-web-vitals"
-}
-</file>
-
-<file path=".gitignore">
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-.env
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
 </file>
 
 <file path="app/api/import-lesson/route.ts">
@@ -635,6 +616,163 @@ export function useLanguage() {
     throw new Error('useLanguage must be used within LanguageProvider');
   }
   return context;
+}
+</file>
+
+<file path="app/dashboard/conversations/page.tsx">
+'use client'
+import { useEffect, useState } from 'react'
+import { createClient } from '@/lib/supabase-client'
+import { motion } from 'framer-motion'
+
+const supabase = createClient()
+
+export default function ConversationsPage() {
+  const [scenarios, setScenarios] = useState<any[]>([])
+  const [currentScenario, setCurrentScenario] = useState<any>(null)
+  const [dialogueIndex, setDialogueIndex] = useState(0)
+  const [userAnswer, setUserAnswer] = useState('')
+  const [feedback, setFeedback] = useState('')
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadScenarios()
+  }, [])
+
+  async function loadScenarios() {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data } = await supabase
+      .from('conversation_scenarios')
+      .select('*')
+      .eq('student_id', user.id)
+
+    if (data && data.length > 0) {
+      setScenarios(data)
+      setCurrentScenario(data[0])
+    }
+    setLoading(false)
+  }
+
+  const handleOptionSelect = (option: any) => {
+    setFeedback(option.feedback)
+    setTimeout(() => {
+      setDialogueIndex(prev => prev + 1)
+      setFeedback('')
+    }, 2000)
+  }
+
+  const handleTextSubmit = () => {
+    setFeedback('מעולה! תשובה נכונה')
+    setTimeout(() => {
+      setDialogueIndex(prev => prev + 1)
+      setFeedback('')
+      setUserAnswer('')
+    }, 2000)
+  }
+
+  if (loading) return <div className="flex h-screen items-center justify-center font-bold text-slate-400">Loading...</div>
+
+  if (!currentScenario) return (
+    <div className="flex flex-col h-screen items-center justify-center">
+      <div className="text-8xl mb-6">💬</div>
+      <h1 className="text-4xl font-bold mb-4 text-slate-900">No conversations yet</h1>
+      <p className="text-slate-500">Your teacher will add practice conversations soon!</p>
+    </div>
+  )
+
+  const dialogue = currentScenario.dialogue
+  const currentTurn = dialogue[dialogueIndex]
+
+  if (!currentTurn) return (
+    <div className="flex flex-col h-screen items-center justify-center">
+      <div className="text-8xl mb-6">🎉</div>
+      <h1 className="text-4xl font-bold mb-4 text-slate-900">Conversation Complete!</h1>
+      <button 
+        onClick={() => {
+          setDialogueIndex(0)
+          setFeedback('')
+        }} 
+        className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
+      >
+        Practice Again
+      </button>
+    </div>
+  )
+
+  return (
+    <div className="max-w-4xl mx-auto min-h-screen">
+      <div className="bg-indigo-50 p-6 rounded-2xl mb-8 border border-indigo-100">
+        <h2 className="text-2xl font-bold text-slate-900 mb-2">{currentScenario.title}</h2>
+        <p className="text-slate-600">{currentScenario.context}</p>
+      </div>
+
+      <motion.div
+        key={dialogueIndex}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white p-8 rounded-3xl shadow-xl mb-6 border border-slate-100"
+      >
+        <div className="mb-6">
+          <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2">
+            👤 {currentTurn.speaker}
+          </p>
+          <h3 className="text-4xl font-bold mb-2 text-slate-900" dir="rtl">{currentTurn.text_he}</h3>
+          <p className="text-slate-500 text-lg">{currentTurn.text_en}</p>
+        </div>
+
+        {currentTurn.options && (
+          <div className="space-y-3">
+            <p className="text-sm text-slate-500 font-bold mb-3">Choose your response:</p>
+            {currentTurn.options.map((opt: any, i: number) => (
+              <button
+                key={i}
+                onClick={() => handleOptionSelect(opt)}
+                disabled={!!feedback}
+                className="w-full p-4 bg-slate-50 hover:bg-indigo-50 rounded-xl text-left border-2 border-transparent hover:border-indigo-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <p className="font-bold text-lg text-slate-900" dir="rtl">{opt.he}</p>
+                <p className="text-slate-500 text-sm">{opt.en}</p>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {currentTurn.type === 'free_text' && (
+          <div>
+            <p className="text-sm text-slate-500 font-bold mb-3">Type your response in Hebrew:</p>
+            <input
+              type="text"
+              value={userAnswer}
+              onChange={(e) => setUserAnswer(e.target.value)}
+              placeholder="כתוב תשובה בעברית..."
+              className="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 text-lg focus:border-indigo-500 focus:outline-none"
+              dir="rtl"
+              disabled={!!feedback}
+            />
+            <button
+              onClick={handleTextSubmit}
+              disabled={!userAnswer.trim() || !!feedback}
+              className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Submit
+            </button>
+          </div>
+        )}
+      </motion.div>
+
+      {feedback && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="bg-green-50 border-2 border-green-300 p-6 rounded-2xl"
+        >
+          <p className="text-green-800 font-bold">✅ {feedback}</p>
+        </motion.div>
+      )}
+    </div>
+  )
 }
 </file>
 
@@ -4945,6 +5083,17 @@ if (require.main === module) {
 export { seedVocabulary, insertVocabularyWord, ensureRoot }
 </file>
 
+<file path="lib/supabase-client.ts">
+import { createBrowserClient } from '@supabase/ssr'
+
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
+</file>
+
 <file path="lib/supabase.ts">
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from '@/types/database'
@@ -5375,6 +5524,27 @@ module.exports = {
     autoprefixer: {},
   },
 }
+</file>
+
+<file path="repomix.config.json">
+{
+    "output": {
+      "filePath": "repomix-output.xml"
+    },
+    "ignore": {
+      "customPatterns": [
+        "full_code.txt",
+        "project_code.txt",
+        "*.old",
+        "*.backup",
+        "repomix-output.xml",
+        "node_modules/**",
+        ".next/**",
+        ".git/**",
+        "*.log"
+      ]
+    }
+  }
 </file>
 
 <file path="supabase_full_brain.sql">
@@ -6467,659 +6637,6 @@ const nextConfig = {
 module.exports = nextConfig;
 </file>
 
-<file path="app/admin/page.tsx">
-'use client'
-
-import { useState, useEffect } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-
-interface Student {
-  id: string
-  user_id: string
-  student_name: string
-  native_language: string
-  current_level: string
-}
-
-interface ImportResult {
-  success: boolean
-  lesson_id: string
-  cards_created: number
-  message: string
-}
-
-// Example JSON template shown to user
-const EXAMPLE_JSON = `{
-  "lesson_number": 1,
-  "lesson_date": "${new Date().toISOString().split('T')[0]}",
-  "summary": "Trial lesson. Covered basic greetings and self-introduction...",
-  "vocabulary": [
-    {"front": "שָׁלוֹם", "back": "Hello / Peace", "transliteration": "shalom", "category": "greetings"},
-    {"front": "מַה שְׁלוֹמְךָ", "back": "How are you? (m)", "transliteration": "ma shlomkha", "category": "phrases"}
-  ],
-  "analysis": {
-    "struggles": ["Gender agreement", "Pronunciation of ח"],
-    "strengths": ["Good ear for vowels", "Quick recall"],
-    "recommendations": ["Drill greeting responses", "Practice ח vs כ minimal pairs"],
-    "talk_ratio": {"student": 35, "teacher": 65},
-    "hebrew_percentage": 20,
-    "notes": "Motivated student, learns through conversation"
-  }
-}`
-
-export default function AdminPage() {
-  const [students, setStudents] = useState<Student[]>([])
-  const [selectedStudent, setSelectedStudent] = useState<string>('')
-  const [jsonInput, setJsonInput] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<ImportResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<'import' | 'register' | 'history'>('import')
-  
-  // New student form
-  const [newStudentEmail, setNewStudentEmail] = useState('')
-  const [newStudentName, setNewStudentName] = useState('')
-  const [newStudentLang, setNewStudentLang] = useState('en')
-  const [newStudentGoals, setNewStudentGoals] = useState('')
-  const [registerResult, setRegisterResult] = useState<string | null>(null)
-
-  // Lesson history
-  const [lessons, setLessons] = useState<any[]>([])
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
-
-  useEffect(() => {
-    loadStudents()
-  }, [])
-
-  async function loadStudents() {
-    const res = await fetch('/api/import-lesson')
-    const data = await res.json()
-    if (data.students) {
-      setStudents(data.students)
-    }
-  }
-
-  async function loadHistory(studentName: string) {
-    const { data } = await supabase
-      .from('lessons')
-      .select('id, student_name, lesson_number, lesson_date, summary, vocabulary, analysis, created_at')
-      .eq('student_name', studentName)
-      .order('lesson_number', { ascending: false })
-    
-    setLessons(data || [])
-  }
-
-  async function handleImport() {
-    setError(null)
-    setResult(null)
-
-    if (!selectedStudent) {
-      setError('Select a student first')
-      return
-    }
-
-    let parsed: any
-    try {
-      parsed = JSON.parse(jsonInput)
-    } catch {
-      setError('Invalid JSON. Copy the exact output from Claude.')
-      return
-    }
-
-    const student = students.find(s => s.user_id === selectedStudent)
-    if (!student) {
-      setError('Student not found')
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      const res = await fetch('/api/import-lesson', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          student_user_id: student.user_id,
-          student_name: student.student_name,
-          lesson_number: parsed.lesson_number,
-          lesson_date: parsed.lesson_date,
-          summary: parsed.summary,
-          vocabulary: parsed.vocabulary || [],
-          analysis: parsed.analysis || {}
-        })
-      })
-
-      const data = await res.json()
-
-      if (data.success) {
-        setResult(data)
-        setJsonInput('')
-        loadHistory(student.student_name)
-      } else {
-        setError(data.error || 'Import failed')
-      }
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  async function handleRegister() {
-    setRegisterResult(null)
-    setError(null)
-
-    if (!newStudentEmail || !newStudentName) {
-      setError('Name and email are required')
-      return
-    }
-
-    setLoading(true)
-
-    try {
-      // Look up user by email in auth.users (needs service role)
-      // For now, we'll create the profile and the student can sign up separately
-      // OR if they already have an account, we match by email
-      
-      const { data: existingUsers } = await supabase
-        .from('profiles')
-        .select('id')
-      
-      // Try to find user by checking if email matches
-      // This is a simplified approach - in production you'd use admin API
-      const res = await fetch('/api/register-student', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: newStudentEmail,
-          student_name: newStudentName,
-          native_language: newStudentLang,
-          learning_goals: newStudentGoals
-        })
-      })
-
-      const data = await res.json()
-      
-      if (data.success) {
-        setRegisterResult(`✅ ${newStudentName} registered! They can now sign up at your website.`)
-        setNewStudentEmail('')
-        setNewStudentName('')
-        setNewStudentGoals('')
-        loadStudents()
-      } else {
-        setError(data.error || 'Registration failed')
-      }
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div style={{ 
-      minHeight: '100vh', 
-      backgroundColor: '#f5f5f5',
-      color: '#1a1a1a',
-      fontFamily: "'JetBrains Mono', 'Fira Code', monospace"
-    }}>
-      {/* Header */}
-      <div style={{ 
-        borderBottom: '1px solid #1a1a2e',
-        padding: '16px 24px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center'
-      }}>
-        <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#fff', margin: 0 }}>
-            🎛️ Lesson Control Panel
-          </h1>
-          <p style={{ fontSize: '12px', color: '#666', margin: '4px 0 0' }}>
-            Import lesson data → Student gets personalized flashcards
-          </p>
-        </div>
-        <div style={{ fontSize: '11px', color: '#444' }}>
-          {students.length} students registered
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ 
-        display: 'flex', 
-        gap: '0',
-        borderBottom: '1px solid #1a1a2e',
-        padding: '0 24px'
-      }}>
-        {(['import', 'register', 'history'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            style={{
-              padding: '12px 20px',
-              background: 'none',
-              border: 'none',
-              borderBottom: activeTab === tab ? '2px solid #4ade80' : '2px solid transparent',
-              color: activeTab === tab ? '#4ade80' : '#666',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: 600,
-              textTransform: 'uppercase',
-              letterSpacing: '1px',
-              fontFamily: 'inherit'
-            }}
-          >
-            {tab === 'import' ? '📥 Import Lesson' : tab === 'register' ? '👤 Add Student' : '📋 History'}
-          </button>
-        ))}
-      </div>
-
-      <div style={{ maxWidth: '900px', margin: '0 auto', padding: '24px' }}>
-
-        {/* Error / Success Messages */}
-        {error && (
-          <div style={{
-            background: '#2d1215',
-            border: '1px solid #7f1d1d',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '16px',
-            fontSize: '13px',
-            color: '#fca5a5'
-          }}>
-            ❌ {error}
-          </div>
-        )}
-
-        {result && (
-          <div style={{
-            background: '#052e16',
-            border: '1px solid #166534',
-            borderRadius: '8px',
-            padding: '12px 16px',
-            marginBottom: '16px',
-            fontSize: '13px',
-            color: '#86efac'
-          }}>
-            ✅ {result.message}
-          </div>
-        )}
-
-        {/* ============ IMPORT TAB ============ */}
-        {activeTab === 'import' && (
-          <div>
-            {/* Step 1: Select Student */}
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '11px', 
-                fontWeight: 700, 
-                textTransform: 'uppercase', 
-                letterSpacing: '1.5px',
-                color: '#888',
-                marginBottom: '8px'
-              }}>
-                Step 1: Select Student
-              </label>
-              <select
-                value={selectedStudent}
-                onChange={(e) => {
-                  setSelectedStudent(e.target.value)
-                  const s = students.find(s => s.user_id === e.target.value)
-                  if (s) loadHistory(s.student_name)
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: '#111118',
-                  border: '1px solid #2a2a3e',
-                  borderRadius: '8px',
-                  color: '#fff',
-                  fontSize: '15px',
-                  fontFamily: 'inherit'
-                }}
-              >
-                <option value="">-- Choose student --</option>
-                {students.map(s => (
-                  <option key={s.user_id} value={s.user_id}>
-                    {s.student_name} ({s.native_language}) — {s.current_level}
-                  </option>
-                ))}
-              </select>
-              
-              {students.length === 0 && (
-                <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
-                  No students yet. Go to "Add Student" tab first.
-                </p>
-              )}
-            </div>
-
-            {/* Step 2: Paste JSON */}
-            <div style={{ marginBottom: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <label style={{ 
-                  fontSize: '11px', 
-                  fontWeight: 700, 
-                  textTransform: 'uppercase', 
-                  letterSpacing: '1.5px',
-                  color: '#888'
-                }}>
-                  Step 2: Paste Lesson JSON from Claude
-                </label>
-                <button
-                  onClick={() => setJsonInput(EXAMPLE_JSON)}
-                  style={{
-                    background: 'none',
-                    border: '1px solid #333',
-                    borderRadius: '4px',
-                    color: '#666',
-                    padding: '4px 8px',
-                    fontSize: '10px',
-                    cursor: 'pointer',
-                    fontFamily: 'inherit'
-                  }}
-                >
-                  Load Example
-                </button>
-              </div>
-              <textarea
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                placeholder='Paste the JSON output from Claude here...'
-                rows={16}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  background: '#0d0d14',
-                  border: '1px solid #2a2a3e',
-                  borderRadius: '8px',
-                  color: '#a3e635',
-                  fontSize: '13px',
-                  fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                  lineHeight: '1.6',
-                  resize: 'vertical'
-                }}
-              />
-              
-              {/* Preview */}
-              {jsonInput && (() => {
-                try {
-                  const parsed = JSON.parse(jsonInput)
-                  return (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '12px 16px',
-                      background: '#111118',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      color: '#888'
-                    }}>
-                      <strong style={{ color: '#fff' }}>Preview:</strong>{' '}
-                      Lesson {parsed.lesson_number} • {parsed.lesson_date} • {' '}
-                      <span style={{ color: '#4ade80' }}>{parsed.vocabulary?.length || 0} flashcards</span> • {' '}
-                      <span style={{ color: '#fbbf24' }}>{parsed.analysis?.struggles?.length || 0} struggles</span>
-                      {parsed.summary && (
-                        <p style={{ marginTop: '8px', color: '#666', lineHeight: '1.4' }}>
-                          {parsed.summary.substring(0, 150)}...
-                        </p>
-                      )}
-                    </div>
-                  )
-                } catch {
-                  return (
-                    <div style={{ marginTop: '8px', fontSize: '12px', color: '#ef4444' }}>
-                      ⚠️ Invalid JSON — check formatting
-                    </div>
-                  )
-                }
-              })()}
-            </div>
-
-            {/* Step 3: Import */}
-            <button
-              onClick={handleImport}
-              disabled={loading || !selectedStudent || !jsonInput}
-              style={{
-                width: '100%',
-                padding: '16px',
-                background: loading ? '#1a1a2e' : (!selectedStudent || !jsonInput) ? '#1a1a2e' : '#166534',
-                border: 'none',
-                borderRadius: '8px',
-                color: loading ? '#666' : (!selectedStudent || !jsonInput) ? '#444' : '#fff',
-                fontSize: '15px',
-                fontWeight: 700,
-                cursor: loading ? 'wait' : (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer',
-                fontFamily: 'inherit',
-                transition: 'all 0.2s'
-              }}
-            >
-              {loading ? '⏳ Importing...' : '🚀 Import Lesson & Create Flashcards'}
-            </button>
-
-            {/* How it works */}
-            <div style={{
-              marginTop: '32px',
-              padding: '20px',
-              background: '#111118',
-              borderRadius: '8px',
-              border: '1px solid #1a1a2e'
-            }}>
-              <h3 style={{ fontSize: '13px', fontWeight: 700, color: '#fff', margin: '0 0 12px' }}>
-                How this works:
-              </h3>
-              <div style={{ fontSize: '12px', color: '#888', lineHeight: '2' }}>
-                <div>1️⃣ Teach lesson → Record → Transcribe in Colab</div>
-                <div>2️⃣ Paste transcript to Claude → Get JSON output</div>
-                <div>3️⃣ Paste JSON here → Click Import</div>
-                <div>4️⃣ Student logs in → Sees new flashcards + lesson summary</div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============ REGISTER TAB ============ */}
-        {activeTab === 'register' && (
-          <div>
-            <div style={{
-              padding: '16px',
-              background: '#111118',
-              borderRadius: '8px',
-              border: '1px solid #1a1a2e',
-              marginBottom: '24px',
-              fontSize: '12px',
-              color: '#888',
-              lineHeight: '1.6'
-            }}>
-              <strong style={{ color: '#fff' }}>How student accounts work:</strong><br/>
-              1. You register the student here (name + email)<br/>
-              2. Student signs up on your website with that email<br/>
-              3. The system links their account to their lesson data<br/>
-              4. They see personalized flashcards when they log in
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
-                  Student Name
-                </label>
-                <input
-                  value={newStudentName}
-                  onChange={(e) => setNewStudentName(e.target.value)}
-                  placeholder="Nikolai"
-                  style={{
-                    width: '100%', padding: '12px 16px', background: '#0d0d14',
-                    border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                    fontSize: '14px', fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
-                  Email (must match their signup email)
-                </label>
-                <input
-                  value={newStudentEmail}
-                  onChange={(e) => setNewStudentEmail(e.target.value)}
-                  placeholder="nikolai@example.com"
-                  type="email"
-                  style={{
-                    width: '100%', padding: '12px 16px', background: '#0d0d14',
-                    border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                    fontSize: '14px', fontFamily: 'inherit'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '16px' }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
-                    Native Language
-                  </label>
-                  <select
-                    value={newStudentLang}
-                    onChange={(e) => setNewStudentLang(e.target.value)}
-                    style={{
-                      width: '100%', padding: '12px 16px', background: '#0d0d14',
-                      border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                      fontSize: '14px', fontFamily: 'inherit'
-                    }}
-                  >
-                    <option value="en">English</option>
-                    <option value="fr">French</option>
-                    <option value="ru">Russian</option>
-                    <option value="es">Spanish</option>
-                    <option value="de">German</option>
-                    <option value="pt">Portuguese</option>
-                    <option value="nl">Dutch</option>
-                    <option value="other">Other</option>
-                  </select>
-                </div>
-
-                <div style={{ flex: 2 }}>
-                  <label style={{ display: 'block', fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '1.5px', color: '#888', marginBottom: '6px' }}>
-                    Learning Goals
-                  </label>
-                  <input
-                    value={newStudentGoals}
-                    onChange={(e) => setNewStudentGoals(e.target.value)}
-                    placeholder="Torah reading, conversational Hebrew..."
-                    style={{
-                      width: '100%', padding: '12px 16px', background: '#0d0d14',
-                      border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                      fontSize: '14px', fontFamily: 'inherit'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleRegister}
-                disabled={loading || !newStudentName || !newStudentEmail}
-                style={{
-                  padding: '14px',
-                  background: (!newStudentName || !newStudentEmail) ? '#1a1a2e' : '#1e40af',
-                  border: 'none', borderRadius: '8px',
-                  color: (!newStudentName || !newStudentEmail) ? '#444' : '#fff',
-                  fontSize: '14px', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit'
-                }}
-              >
-                {loading ? '⏳ Registering...' : '👤 Register Student'}
-              </button>
-
-              {registerResult && (
-                <div style={{
-                  padding: '12px 16px', background: '#052e16', border: '1px solid #166534',
-                  borderRadius: '8px', fontSize: '13px', color: '#86efac'
-                }}>
-                  {registerResult}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* ============ HISTORY TAB ============ */}
-        {activeTab === 'history' && (
-          <div>
-            <div style={{ marginBottom: '16px' }}>
-              <select
-                value={selectedStudent}
-                onChange={(e) => {
-                  setSelectedStudent(e.target.value)
-                  const s = students.find(s => s.user_id === e.target.value)
-                  if (s) loadHistory(s.student_name)
-                }}
-                style={{
-                  width: '100%', padding: '12px 16px', background: '#111118',
-                  border: '1px solid #2a2a3e', borderRadius: '8px', color: '#fff',
-                  fontSize: '14px', fontFamily: 'inherit'
-                }}
-              >
-                <option value="">-- Select student to view history --</option>
-                {students.map(s => (
-                  <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
-                ))}
-              </select>
-            </div>
-
-            {lessons.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px', color: '#444' }}>
-                {selectedStudent ? 'No lessons imported yet for this student.' : 'Select a student above.'}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {lessons.map(lesson => (
-                  <div
-                    key={lesson.id}
-                    style={{
-                      padding: '16px 20px',
-                      background: '#111118',
-                      border: '1px solid #1a1a2e',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontWeight: 700, color: '#fff' }}>
-                        Lesson {lesson.lesson_number}
-                      </span>
-                      <span style={{ fontSize: '12px', color: '#666' }}>
-                        {lesson.lesson_date}
-                      </span>
-                    </div>
-                    {lesson.summary && (
-                      <p style={{ fontSize: '13px', color: '#888', margin: '0 0 8px', lineHeight: '1.5' }}>
-                        {lesson.summary.substring(0, 200)}{lesson.summary.length > 200 ? '...' : ''}
-                      </p>
-                    )}
-                    <div style={{ display: 'flex', gap: '12px', fontSize: '11px' }}>
-                      {lesson.vocabulary && (
-                        <span style={{ color: '#4ade80' }}>
-                          📚 {Array.isArray(lesson.vocabulary) ? lesson.vocabulary.length : 0} vocab items
-                        </span>
-                      )}
-                      {lesson.analysis?.struggles && (
-                        <span style={{ color: '#fbbf24' }}>
-                          ⚠️ {lesson.analysis.struggles.length} struggles
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-</file>
-
 <file path="app/dashboard/nikud/page.tsx">
 'use client';
 
@@ -7357,388 +6874,6 @@ export default function NikudPage() {
               </p>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/dashboard/practice/page.tsx">
-'use client';
-
-import { createClient } from '@supabase/supabase-js';
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
-export default function PracticePage() {
-  const [words, setWords] = useState<any[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [sessionComplete, setSessionComplete] = useState(false);
-  const [audioStatus, setAudioStatus] = useState<'idle' | 'loading' | 'playing'>('idle');
-
-  // שימוש ב-ID הקבוע כדי להבטיח סנכרון עם ה-SQL Editor
-  const fixedUserId = '00000000-0000-0000-0000-000000000000';
-
-  useEffect(() => {
-    loadSession();
-  }, []);
-
-  async function loadSession() {
-    setLoading(true);
-    // שליפת מילים לתרגול
-    const { data } = await supabase
-      .from('vocabulary')
-      .select('id, word_he, translit, meaning_en')
-      .limit(50);
-
-    if (data && data.length > 0) {
-      const shuffled = data.sort(() => 0.5 - Math.random()).slice(0, 10);
-      setWords(shuffled);
-    }
-    setLoading(false);
-  }
-
-  const handleRating = async (rating: string) => {
-    const currentWord = words[currentIndex];
-    const ratingMap: Record<string, number> = {
-      'again': 1,
-      'hard': 2,
-      'good': 3,
-      'easy': 4
-    };
-
-    try {
-      // קריאה לפונקציה החכמה ב-Supabase
-      await supabase.rpc('update_srs_item', {
-        user_id_input: fixedUserId,
-        content_id_input: currentWord.id,
-        content_type_input: 'vocabulary',
-        rating_input: ratingMap[rating]
-      });
-    } catch (error) {
-      console.error('Error saving SRS:', error);
-    }
-
-    if (currentIndex < words.length - 1) {
-      setIsFlipped(false);
-      setCurrentIndex(prev => prev + 1);
-    } else {
-      setSessionComplete(true);
-    }
-  };
-
-  const playAudio = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'he-IL';
-    window.speechSynthesis.speak(utterance);
-  };
-
-  if (loading) return <div className="flex h-screen items-center justify-center bg-white font-bold text-slate-400">טוען תרגול...</div>;
-
-  if (sessionComplete) return (
-    <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
-      <div className="text-8xl mb-6">🎉</div>
-      <h1 className="text-4xl font-black text-slate-900 mb-2">כל הכבוד!</h1>
-      <p className="text-slate-500 mb-8">השלמת את התרגול והנתונים נשמרו בזיכרון המערכת.</p>
-      <button 
-        onClick={() => window.location.href = '/dashboard'} 
-        className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-      >
-        חזרה לדשבורד
-      </button>
-    </div>
-  );
-
-  const currentWord = words[currentIndex];
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6" dir="ltr">
-      <div className="w-full max-w-md mb-8 h-2 bg-slate-200 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-indigo-500 transition-all duration-500"
-          style={{ width: `${((currentIndex + 1) / words.length) * 100}%` }}
-        ></div>
-      </div>
-
-      <div className="w-full max-w-md aspect-[4/5] relative perspective-1000">
-        <AnimatePresence mode="wait">
-          {!isFlipped ? (
-            <motion.div
-              key="front"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col items-center justify-center cursor-pointer"
-              onClick={() => setIsFlipped(true)}
-            >
-              <span className="text-slate-300 text-xs font-bold uppercase tracking-widest mb-12">Click to flip</span>
-              <h1 className="text-7xl font-black mb-3 text-slate-900" dir="rtl">{currentWord.word_he}</h1>
-              
-              {/* התעתיק בצד הקדמי */}
-              {currentWord.translit && (
-                <p className="text-xl text-indigo-400 font-semibold mb-8 italic">
-                  ({currentWord.translit})
-                </p>
-              )}
-              
-              <button 
-                onClick={(e) => { e.stopPropagation(); playAudio(currentWord.word_he); }}
-                className="p-4 rounded-full bg-indigo-50 text-indigo-500 hover:bg-indigo-100"
-              >
-                🔊
-              </button>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="back"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="absolute inset-0 bg-white border border-indigo-100 shadow-xl rounded-[40px] p-8 flex flex-col items-center justify-between"
-            >
-              <div className="text-center mt-10">
-                <h2 className="text-5xl font-black mb-2 text-slate-900" dir="rtl">{currentWord.word_he}</h2>
-                <p className="text-xl text-indigo-500 font-bold mb-6 italic">{currentWord.translit}</p>
-                <div className="bg-slate-50 px-8 py-6 rounded-3xl border border-slate-100">
-                  <p className="text-3xl font-bold text-slate-800">{currentWord.meaning_en}</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 w-full">
-                <button onClick={() => handleRating('again')} className="py-4 rounded-2xl bg-slate-100 text-slate-600 font-bold hover:bg-slate-200">Again</button>
-                <button onClick={() => handleRating('hard')} className="py-4 rounded-2xl bg-orange-50 text-orange-600 font-bold hover:bg-orange-100">Hard</button>
-                <button onClick={() => handleRating('good')} className="py-4 rounded-2xl bg-emerald-50 text-emerald-600 font-bold hover:bg-emerald-100">Good</button>
-                <button onClick={() => handleRating('easy')} className="py-4 rounded-2xl bg-blue-50 text-blue-600 font-bold hover:bg-blue-100">Easy</button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/dashboard/quiz/page.tsx">
-'use client';
-
-import { createBrowserClient } from '@supabase/ssr';
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
-import toast from 'react-hot-toast';
-
-export default function QuizPage() {
-  const [supabase] = useState(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  );
-
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [currentQ, setCurrentQ] = useState<any>(null);
-  const [options, setOptions] = useState<any[]>([]);
-  const [score, setScore] = useState(0);
-  const [displayScore, setDisplayScore] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [gameState, setGameState] = useState<'playing' | 'correct' | 'wrong' | 'finished'>('playing');
-  const [mistakes, setMistakes] = useState<any[]>([]);
-
-  useEffect(() => { startNewGame(); }, []);
-
-  // אנימציית מספרים רצים בסוף
-  useEffect(() => {
-    if (gameState === 'finished' && score > 0) {
-      let start = 0;
-      const duration = 1500;
-      const increment = score / (duration / 20);
-      const timer = setInterval(() => {
-        start += increment;
-        if (start >= score) {
-          setDisplayScore(score);
-          clearInterval(timer);
-        } else {
-          setDisplayScore(Math.floor(start));
-        }
-      }, 20);
-      return () => clearInterval(timer);
-    }
-  }, [gameState, score]);
-
-  // פונקציית הסאונד והקראת המילים (הייתה חסרה!)
-  const playFeedback = async (type: 'success' | 'error' | 'word') => {
-    try {
-      if (type === 'word') {
-        const response = await fetch('/api/tts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text: currentQ.word_he }),
-        });
-        const blob = await response.blob();
-        new Audio(URL.createObjectURL(blob)).play();
-      } else {
-        const url = type === 'success' 
-          ? 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3' 
-          : 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3';
-        new Audio(url).play();
-      }
-    } catch (e) {}
-  };
-
-  async function startNewGame() {
-    setLoading(true);
-    setScore(0);
-    setDisplayScore(0);
-    setMistakes([]);
-    setGameState('playing');
-    const { data } = await supabase.from('vocabulary').select('*').limit(50);
-    if (data && data.length > 0) {
-      const shuffled = data.sort(() => 0.5 - Math.random());
-      setQuestions(shuffled);
-      generateQuestion(shuffled[0], shuffled);
-    }
-    setLoading(false);
-  }
-
-  function generateQuestion(target: any, allWords: any[]) {
-    const distractors = allWords.filter(w => w.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 3);
-    const mixedOptions = [...distractors, target].sort(() => 0.5 - Math.random());
-    setCurrentQ(target);
-    setOptions(mixedOptions);
-    setGameState('playing');
-  }
-
-  const handleAnswer = async (selectedId: string) => {
-    if (gameState !== 'playing') return;
-    const isCorrect = selectedId === currentQ.id;
-
-    if (isCorrect) {
-      setGameState('correct');
-      setScore(prev => prev + 10);
-      playFeedback('success'); // סאונד הצלחה
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('srs_cards').upsert({
-          user_id: user.id,
-          front: currentQ.word_he,
-          back: currentQ.meaning_en,
-          stability: 0.1,
-          next_review: new Date().toISOString(),
-          reps: 1
-        }, { onConflict: 'user_id, front' });
-      }
-    } else {
-      setGameState('wrong');
-      setMistakes(prev => [...prev, currentQ]);
-      playFeedback('error'); // סאונד טעות
-    }
-
-    setTimeout(() => {
-      const nextIndex = questions.indexOf(currentQ) + 1;
-      if (nextIndex < 10 && nextIndex < questions.length) {
-        generateQuestion(questions[nextIndex], questions);
-      } else {
-        setGameState('finished');
-        const finalScore = score + (isCorrect ? 10 : 0);
-        if (finalScore >= 70) confetti();
-        saveProgress(finalScore);
-      }
-    }, isCorrect ? 800 : 1500);
-  };
-
-  async function saveProgress(finalScore: number) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.rpc('update_user_xp', {
-      user_id_input: user.id,
-      xp_to_add: finalScore
-    });
-    if (!error) toast.success(`Success! +${finalScore} XP added`, { icon: '⚡' });
-  }
-
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">Loading Quiz...</div>;
-
-  // דף תוצאות (היה חסר!)
-  if (gameState === 'finished') return (
-    <div className="max-w-2xl mx-auto p-8 flex flex-col items-center min-h-screen bg-slate-50 pt-16" dir="ltr">
-      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl mb-4">🏆</motion.div>
-      <h1 className="text-4xl font-black text-slate-900 mb-2 text-center">Quiz Results</h1>
-      <div className="w-full bg-white rounded-[40px] shadow-2xl border border-slate-100 p-10 text-center mb-8">
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2 text-center">XP Earned</p>
-        <div className="text-7xl font-black text-indigo-600 mb-6 text-center">{displayScore}</div>
-        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-4">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${(score / 100) * 100}%` }} className="h-full bg-indigo-500" />
-        </div>
-      </div>
-      {mistakes.length > 0 && (
-        <div className="w-full bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100 mb-8 text-left">
-          <div className="bg-slate-900 p-4 text-white font-bold text-center">Words to Review</div>
-          <table className="w-full border-collapse">
-            <tbody>
-              {mistakes.map((word, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="p-4 text-2xl font-bold text-right text-slate-800" dir="rtl">{word.word_he}</td>
-                  <td className="p-4 text-slate-600 font-medium">{word.meaning_en}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <button onClick={startNewGame} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all">Start New Quiz</button>
-    </div>
-  );
-
-  return (
-    <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[90vh]" dir="ltr">
-      <div className="w-full max-w-2xl">
-        <div className="flex justify-between items-center mb-8 font-bold">
-          <span className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 text-slate-900">
-            {questions.indexOf(currentQ) + 1} / 10
-          </span>
-          <span className="bg-indigo-600 px-6 py-2 rounded-xl text-white shadow-lg">{score} XP</span>
-        </div>
-        <AnimatePresence mode="wait">
-          <motion.div 
-            key={currentQ.id}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className={`w-full bg-white rounded-[40px] shadow-xl p-12 text-center mb-10 border-4 transition-all duration-300 ${
-              gameState === 'correct' ? 'border-green-500 bg-green-50/30' : 
-              gameState === 'wrong' ? 'border-red-500 bg-red-50/30' : 'border-slate-50'
-            }`}
-          >
-            <h1 className="text-8xl font-black text-slate-900 mb-6 leading-tight text-center" dir="rtl">{currentQ.word_he}</h1>
-            {/* כפתור ה-Listen (היה חסר!) */}
-            <button onClick={() => playFeedback('word')} className="text-indigo-600 font-bold flex items-center space-x-2 mx-auto px-6 py-3 rounded-full hover:bg-indigo-50 transition-colors">
-              <span>🔊</span><span>Listen</span>
-            </button>
-          </motion.div>
-        </AnimatePresence>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => handleAnswer(opt.id)}
-              disabled={gameState !== 'playing'}
-              className={`p-6 rounded-3xl text-xl font-bold transition-all border-2 text-left px-8 shadow-sm
-                ${gameState === 'playing' ? 'bg-white border-slate-100 hover:border-indigo-300 text-slate-700' : ''}
-                ${opt.id === currentQ.id && (gameState === 'correct' || gameState === 'wrong') ? 'bg-green-500 text-white border-green-600' : ''}
-                ${gameState === 'wrong' && opt.id !== currentQ.id ? 'bg-red-50 border-red-200 text-red-400 opacity-50' : ''}
-              `}
-            >
-              {opt.meaning_en}
-            </button>
-          ))}
         </div>
       </div>
     </div>
@@ -7996,6 +7131,223 @@ export default function Dashboard() {
 }
 </file>
 
+<file path="app/dashboard/quiz/page.tsx">
+'use client';
+
+import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
+import toast from 'react-hot-toast';
+import { createClient } from '@/lib/supabase-client';
+
+const supabase = createClient();
+
+export default function QuizPage() {
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [currentQ, setCurrentQ] = useState<any>(null);
+  const [options, setOptions] = useState<any[]>([]);
+  const [score, setScore] = useState(0);
+  const [displayScore, setDisplayScore] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [gameState, setGameState] = useState<'playing' | 'correct' | 'wrong' | 'finished'>('playing');
+  const [mistakes, setMistakes] = useState<any[]>([]);
+
+  useEffect(() => { startNewGame(); }, []);
+
+  useEffect(() => {
+    if (gameState === 'finished' && score > 0) {
+      let start = 0;
+      const duration = 1500;
+      const increment = score / (duration / 20);
+      const timer = setInterval(() => {
+        start += increment;
+        if (start >= score) {
+          setDisplayScore(score);
+          clearInterval(timer);
+        } else {
+          setDisplayScore(Math.floor(start));
+        }
+      }, 20);
+      return () => clearInterval(timer);
+    }
+  }, [gameState, score]);
+
+  const playFeedback = async (type: 'success' | 'error' | 'word') => {
+    try {
+      if (type === 'word') {
+        const utterance = new SpeechSynthesisUtterance(currentQ.front);
+        utterance.lang = 'he-IL';
+        window.speechSynthesis.speak(utterance);
+      } else {
+        const url = type === 'success'
+          ? 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3'
+          : 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3';
+        new Audio(url).play();
+      }
+    } catch (e) {}
+  };
+
+  async function startNewGame() {
+    setLoading(true);
+    setScore(0);
+    setDisplayScore(0);
+    setMistakes([]);
+    setGameState('playing');
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('srs_cards')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('source', 'lesson')
+      .limit(50);
+      
+    if (data && data.length > 0) {
+      const shuffled = data.sort(() => 0.5 - Math.random());
+      setQuestions(shuffled);
+      generateQuestion(shuffled[0], shuffled);
+    }
+    setLoading(false);
+  }
+
+  function generateQuestion(target: any, allWords: any[]) {
+    const distractors = allWords.filter(w => w.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 3);
+    const mixedOptions = [...distractors, target].sort(() => 0.5 - Math.random());
+    setCurrentQ(target);
+    setOptions(mixedOptions);
+    setGameState('playing');
+  }
+
+  const handleAnswer = async (selectedId: string) => {
+    if (gameState !== 'playing') return;
+    const isCorrect = selectedId === currentQ.id;
+
+    if (isCorrect) {
+      setGameState('correct');
+      setScore(prev => prev + 10);
+      playFeedback('success');
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await supabase.from('srs_cards').upsert({
+          user_id: user.id,
+          front: currentQ.front,
+          back: currentQ.back,
+          stability: 0.1,
+          next_review: new Date().toISOString(),
+          reps: 1
+        }, { onConflict: 'user_id, front' });
+      }
+    } else {
+      setGameState('wrong');
+      setMistakes(prev => [...prev, currentQ]);
+      playFeedback('error');
+    }
+
+    setTimeout(() => {
+      const nextIndex = questions.indexOf(currentQ) + 1;
+      if (nextIndex < 10 && nextIndex < questions.length) {
+        generateQuestion(questions[nextIndex], questions);
+      } else {
+        setGameState('finished');
+        const finalScore = score + (isCorrect ? 10 : 0);
+        if (finalScore >= 70) confetti();
+        saveProgress(finalScore);
+      }
+    }, isCorrect ? 800 : 1500);
+  };
+
+  async function saveProgress(finalScore: number) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.rpc('update_user_xp', {
+      user_id_input: user.id,
+      xp_to_add: finalScore
+    });
+    if (!error) toast.success(`Success! +${finalScore} XP added`, { icon: '⚡' });
+  }
+
+  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">Loading Quiz...</div>;
+
+  if (gameState === 'finished') return (
+    <div className="max-w-2xl mx-auto p-8 flex flex-col items-center min-h-screen bg-slate-50 pt-16" dir="ltr">
+      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl mb-4">🏆</motion.div>
+      <h1 className="text-4xl font-black text-slate-900 mb-2 text-center">Quiz Results</h1>
+      <div className="w-full bg-white rounded-[40px] shadow-2xl border border-slate-100 p-10 text-center mb-8">
+        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2 text-center">XP Earned</p>
+        <div className="text-7xl font-black text-indigo-600 mb-6 text-center">{displayScore}</div>
+        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-4">
+          <motion.div initial={{ width: 0 }} animate={{ width: `${(score / 100) * 100}%` }} className="h-full bg-indigo-500" /> 
+        </div>
+      </div>
+      {mistakes.length > 0 && (
+        <div className="w-full bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100 mb-8 text-left">
+          <div className="bg-slate-900 p-4 text-white font-bold text-center">Words to Review</div>
+          <table className="w-full border-collapse">
+            <tbody>
+              {mistakes.map((word, i) => (
+                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
+                  <td className="p-4 text-2xl font-bold text-right text-slate-800" dir="rtl">{word.front}</td>
+                  <td className="p-4 text-slate-600 font-medium">{word.back}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <button onClick={startNewGame} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all">Start New Quiz</button>
+    </div>
+  );
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[90vh]" dir="ltr">
+      <div className="w-full max-w-2xl">
+        <div className="flex justify-between items-center mb-8 font-bold">
+          <span className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 text-slate-900">
+            {questions.indexOf(currentQ) + 1} / 10
+          </span>
+          <span className="bg-indigo-600 px-6 py-2 rounded-xl text-white shadow-lg">{score} XP</span>
+        </div>
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentQ.id}
+            initial={{ y: 10, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            className={`w-full bg-white rounded-[40px] shadow-xl p-12 text-center mb-10 border-4 transition-all duration-300 ${ 
+              gameState === 'correct' ? 'border-green-500 bg-green-50/30' :
+              gameState === 'wrong' ? 'border-red-500 bg-red-50/30' : 'border-slate-50'
+            }`}
+          >
+            <h1 className="text-8xl font-black text-slate-900 mb-6 leading-tight text-center" dir="rtl">{currentQ.front}</h1>
+            <button onClick={() => playFeedback('word')} className="text-indigo-600 font-bold flex items-center space-x-2 mx-auto px-6 py-3 rounded-full hover:bg-indigo-50 transition-colors">
+              <span>🔊</span><span>Listen</span>
+            </button>
+          </motion.div>
+        </AnimatePresence>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {options.map((opt) => (
+            <button
+              key={opt.id}
+              onClick={() => handleAnswer(opt.id)}
+              disabled={gameState !== 'playing'}
+              className={`p-6 rounded-3xl text-xl font-bold transition-all border-2 text-left px-8 shadow-sm
+                ${gameState === 'playing' ? 'bg-white border-slate-100 hover:border-indigo-300 text-slate-700' : ''}
+                ${opt.id === currentQ.id && (gameState === 'correct' || gameState === 'wrong') ? 'bg-green-500 text-white border-green-600' : ''}
+                ${gameState === 'wrong' && opt.id !== currentQ.id ? 'bg-red-50 border-red-200 text-red-400 opacity-50' : ''}    
+              `}
+            >
+              {opt.back}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
 <file path="app/dashboard/vocabulary/page.tsx">
 'use client';
 
@@ -8175,6 +7527,531 @@ export default function VocabularyPage() {
 }
 </file>
 
+<file path="app/admin/page.tsx">
+'use client'
+
+import { useState, useEffect } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+
+interface Student {
+  id: string
+  user_id: string
+  student_name: string
+  native_language: string
+  current_level: string
+}
+
+interface ImportResult {
+  success: boolean
+  lesson_id: string
+  cards_created: number
+  message: string
+}
+
+const EXAMPLE_JSON = `{
+  "lesson_number": 1,
+  "lesson_date": "${new Date().toISOString().split('T')[0]}",
+  "summary": "Trial lesson. Covered basic greetings and self-introduction...",
+  "vocabulary": [
+    {"front": "שָׁלוֹם", "back": "Hello / Peace", "transliteration": "shalom", "category": "greetings"},
+    {"front": "מַה שְׁלוֹמְךָ", "back": "How are you? (m)", "transliteration": "ma shlomkha", "category": "phrases"}
+  ],
+  "analysis": {
+    "struggles": ["Gender agreement", "Pronunciation of ח"],
+    "strengths": ["Good ear for vowels", "Quick recall"],
+    "recommendations": ["Drill greeting responses", "Practice ח vs כ minimal pairs"],
+    "talk_ratio": {"student": 35, "teacher": 65},
+    "hebrew_percentage": 20,
+    "notes": "Motivated student, learns through conversation"
+  }
+}`
+
+export default function AdminPage() {
+  const [students, setStudents] = useState<Student[]>([])
+  const [selectedStudent, setSelectedStudent] = useState<string>('')
+  const [jsonInput, setJsonInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<ImportResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'import' | 'register' | 'history'>('import')
+  
+  const [newStudentEmail, setNewStudentEmail] = useState('')
+  const [newStudentName, setNewStudentName] = useState('')
+  const [newStudentLang, setNewStudentLang] = useState('en')
+  const [newStudentGoals, setNewStudentGoals] = useState('')
+  const [registerResult, setRegisterResult] = useState<string | null>(null)
+
+  const [lessons, setLessons] = useState<any[]>([])
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  useEffect(() => {
+    loadStudents()
+  }, [])
+
+  async function loadStudents() {
+    const res = await fetch('/api/import-lesson')
+    const data = await res.json()
+    if (data.students) {
+      setStudents(data.students)
+    }
+  }
+
+  async function loadHistory(studentName: string) {
+    const { data } = await supabase
+      .from('lessons')
+      .select('id, student_name, lesson_number, lesson_date, summary, vocabulary, analysis, created_at')
+      .eq('student_name', studentName)
+      .order('lesson_number', { ascending: false })
+    
+    setLessons(data || [])
+  }
+
+  async function handleImport() {
+    setError(null)
+    setResult(null)
+
+    if (!selectedStudent) {
+      setError('Select a student first')
+      return
+    }
+
+    let parsed: any
+    try {
+      parsed = JSON.parse(jsonInput)
+    } catch {
+      setError('Invalid JSON. Copy the exact output from Claude.')
+      return
+    }
+
+    const student = students.find(s => s.user_id === selectedStudent)
+    if (!student) {
+      setError('Student not found')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/import-lesson', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_user_id: student.user_id,
+          student_name: student.student_name,
+          lesson_number: parsed.lesson_number,
+          lesson_date: parsed.lesson_date,
+          summary: parsed.summary,
+          vocabulary: parsed.vocabulary || [],
+          analysis: parsed.analysis || {}
+        })
+      })
+
+      const data = await res.json()
+
+      if (data.success) {
+        setResult(data)
+        setJsonInput('')
+        loadHistory(student.student_name)
+      } else {
+        setError(data.error || 'Import failed')
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleRegister() {
+    setRegisterResult(null)
+    setError(null)
+
+    if (!newStudentEmail || !newStudentName) {
+      setError('Name and email are required')
+      return
+    }
+
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/register-student', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: newStudentEmail,
+          student_name: newStudentName,
+          native_language: newStudentLang,
+          learning_goals: newStudentGoals
+        })
+      })
+
+      const data = await res.json()
+      
+      if (data.success) {
+        setRegisterResult(`✅ ${newStudentName} registered!${data.temp_password ? ` Temp password: ${data.temp_password}` : ' They can now sign up.'}`)
+        setNewStudentEmail('')
+        setNewStudentName('')
+        setNewStudentGoals('')
+        loadStudents()
+      } else {
+        setError(data.error || 'Registration failed')
+      }
+    } catch (err: any) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div style={{ 
+      minHeight: '100vh', 
+      backgroundColor: '#ffffff',
+      color: '#1f2937',
+      fontFamily: "system-ui, -apple-system, sans-serif"
+    }}>
+      {/* Header */}
+      <div style={{ 
+        borderBottom: '2px solid #e5e7eb',
+        padding: '20px 32px',
+        backgroundColor: '#f9fafb'
+      }}>
+        <h1 style={{ fontSize: '24px', fontWeight: 700, color: '#111827', margin: 0 }}>
+          🎛️ Lesson Control Panel
+        </h1>
+        <p style={{ fontSize: '14px', color: '#6b7280', margin: '4px 0 0' }}>
+          Import lesson data → Student gets personalized flashcards ({students.length} students)
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '0',
+        borderBottom: '2px solid #e5e7eb',
+        padding: '0 32px',
+        backgroundColor: '#ffffff'
+      }}>
+        {(['import', 'register', 'history'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: '14px 24px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === tab ? '3px solid #10b981' : '3px solid transparent',
+              color: activeTab === tab ? '#10b981' : '#6b7280',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}
+          >
+            {tab === 'import' ? '📥 Import' : tab === 'register' ? '👤 Add Student' : '📋 History'}
+          </button>
+        ))}
+      </div>
+
+      <div style={{ maxWidth: '1000px', margin: '0 auto', padding: '32px' }}>
+
+        {/* Messages */}
+        {error && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            color: '#991b1b'
+          }}>
+            ❌ {error}
+          </div>
+        )}
+
+        {result && (
+          <div style={{
+            background: '#f0fdf4',
+            border: '1px solid #86efac',
+            borderRadius: '8px',
+            padding: '12px 16px',
+            marginBottom: '20px',
+            color: '#166534'
+          }}>
+            ✅ {result.message}
+          </div>
+        )}
+
+        {/* IMPORT TAB */}
+        {activeTab === 'import' && (
+          <div>
+            <div style={{ marginBottom: '24px' }}>
+              <label style={{ 
+                display: 'block', 
+                fontSize: '13px', 
+                fontWeight: 600, 
+                color: '#374151',
+                marginBottom: '8px'
+              }}>
+                Select Student
+              </label>
+              <select
+                value={selectedStudent}
+                onChange={(e) => {
+                  setSelectedStudent(e.target.value)
+                  const s = students.find(s => s.user_id === e.target.value)
+                  if (s) loadHistory(s.student_name)
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  background: '#ffffff',
+                  border: '2px solid #d1d5db',
+                  borderRadius: '8px',
+                  color: '#111827',
+                  fontSize: '15px'
+                }}
+              >
+                <option value="">-- Choose student --</option>
+                {students.map(s => (
+                  <option key={s.user_id} value={s.user_id}>
+                    {s.student_name} ({s.native_language})
+                  </option>
+                ))}
+              </select>
+              
+              {students.length === 0 && (
+                <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '8px' }}>
+                  No students yet. Go to "Add Student" tab first.
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                  Paste Lesson JSON
+                </label>
+                <button
+                  onClick={() => setJsonInput(EXAMPLE_JSON)}
+                  style={{
+                    background: '#f3f4f6',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '6px',
+                    color: '#374151',
+                    padding: '4px 12px',
+                    fontSize: '12px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Load Example
+                </button>
+              </div>
+              <textarea
+                value={jsonInput}
+                onChange={(e) => setJsonInput(e.target.value)}
+                placeholder='Paste JSON from Claude...'
+                rows={14}
+                style={{
+                  width: '100%',
+                  padding: '16px',
+                  background: '#f9fafb',
+                  border: '2px solid #d1d5db',
+                  borderRadius: '8px',
+                  color: '#111827',
+                  fontSize: '13px',
+                  fontFamily: "'Courier New', monospace",
+                  lineHeight: '1.5',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <button
+              onClick={handleImport}
+              disabled={loading || !selectedStudent || !jsonInput}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: (!selectedStudent || !jsonInput) ? '#e5e7eb' : '#10b981',
+                border: 'none',
+                borderRadius: '8px',
+                color: (!selectedStudent || !jsonInput) ? '#9ca3af' : '#ffffff',
+                fontSize: '16px',
+                fontWeight: 700,
+                cursor: (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              {loading ? '⏳ Importing...' : '🚀 Import Lesson'}
+            </button>
+          </div>
+        )}
+
+        {/* REGISTER TAB */}
+        {activeTab === 'register' && (
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  Student Name
+                </label>
+                <input
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Nikolai"
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#ffffff',
+                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                    fontSize: '15px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  Email
+                </label>
+                <input
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                  placeholder="nikolai@example.com"
+                  type="email"
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#ffffff',
+                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                    fontSize: '15px'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                    Language
+                  </label>
+                  <select
+                    value={newStudentLang}
+                    onChange={(e) => setNewStudentLang(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px 16px', background: '#ffffff',
+                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                      fontSize: '15px'
+                    }}
+                  >
+                    <option value="en">English</option>
+                    <option value="fr">French</option>
+                    <option value="ru">Russian</option>
+                    <option value="es">Spanish</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                    Learning Goals
+                  </label>
+                  <input
+                    value={newStudentGoals}
+                    onChange={(e) => setNewStudentGoals(e.target.value)}
+                    placeholder="Torah reading, conversation..."
+                    style={{
+                      width: '100%', padding: '12px 16px', background: '#ffffff',
+                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                      fontSize: '15px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleRegister}
+                disabled={loading || !newStudentName || !newStudentEmail}
+                style={{
+                  padding: '16px',
+                  background: (!newStudentName || !newStudentEmail) ? '#e5e7eb' : '#3b82f6',
+                  border: 'none', borderRadius: '8px',
+                  color: (!newStudentName || !newStudentEmail) ? '#9ca3af' : '#ffffff',
+                  fontSize: '16px', fontWeight: 700, 
+                  cursor: (!newStudentName || !newStudentEmail) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? '⏳ Registering...' : '👤 Register Student'}
+              </button>
+
+              {registerResult && (
+                <div style={{
+                  padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac',
+                  borderRadius: '8px', color: '#166534', fontSize: '14px', fontWeight: 600
+                }}>
+                  {registerResult}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div>
+            <select
+              value={selectedStudent}
+              onChange={(e) => {
+                setSelectedStudent(e.target.value)
+                const s = students.find(s => s.user_id === e.target.value)
+                if (s) loadHistory(s.student_name)
+              }}
+              style={{
+                width: '100%', padding: '12px 16px', background: '#ffffff',
+                border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                fontSize: '15px', marginBottom: '20px'
+              }}
+            >
+              <option value="">-- Select student --</option>
+              {students.map(s => (
+                <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
+              ))}
+            </select>
+
+            {lessons.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
+                {selectedStudent ? 'No lessons yet.' : 'Select a student above.'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {lessons.map(lesson => (
+                  <div
+                    key={lesson.id}
+                    style={{
+                      padding: '16px',
+                      background: '#f9fafb',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+                      Lesson {lesson.lesson_number} • {lesson.lesson_date}
+                    </div>
+                    {lesson.summary && (
+                      <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 8px' }}>
+                        {lesson.summary.substring(0, 150)}...
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+</file>
+
 <file path="app/dashboard/layout.tsx">
 'use client';
 
@@ -8193,7 +8070,8 @@ import {
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  UserCircleIcon
+  UserCircleIcon,
+  ChatBubbleLeftRightIcon
 } from '@heroicons/react/24/outline';
 import clsx from 'clsx';
 import { useState, useEffect } from 'react';
@@ -8234,6 +8112,7 @@ export default function DashboardLayout({
     { name: t('nav.nikud'), href: '/dashboard/nikud', icon: AcademicCapIcon },
     { name: t('nav.vocabulary'), href: '/dashboard/vocabulary', icon: BookOpenIcon },
     { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
+    { name: '💬 Conversations', href: '/dashboard/conversations', icon: ChatBubbleLeftRightIcon, special: true },
     { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon, special: true },
   ];
 
@@ -8425,6 +8304,191 @@ export default function Home() {
       </section>
     </main>
   );
+}
+</file>
+
+<file path="app/dashboard/practice/page.tsx">
+'use client'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { createClient } from '@/lib/supabase-client'
+
+const supabase = createClient()
+
+export default function PracticePage() {
+  const [words, setWords] = useState<any[]>([])
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [isFlipped, setIsFlipped] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sessionComplete, setSessionComplete] = useState(false)
+
+  useEffect(() => {
+    loadSession()
+  }, [])
+
+  async function loadSession() {
+    setLoading(true)
+    
+    // Get current user
+    const { data: { user } } = await supabase.auth.getUser()
+    console.log('🔑 Current user ID:', user?.id)
+    console.log('📧 Current user email:', user?.email)
+    
+    if (!user) {
+      console.log('❌ No user logged in')
+      setLoading(false)
+      return
+    }
+    
+    // Query srs_cards for THIS user's personalized vocabulary
+    console.log('🔍 Querying srs_cards for user_id:', user.id)
+    const { data, error } = await supabase
+      .from('srs_cards')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('source', 'lesson')
+      .order('created_at', { ascending: false })
+      .limit(25)
+      
+    console.log('📊 Query result:', data)
+    console.log('❌ Query error:', error)
+
+    if (data && data.length > 0) {
+      setWords(data)
+      console.log('✅ Loaded', data.length, 'personalized cards')
+    } else {
+      console.log('⚠️ No cards found for this user')
+    }
+    setLoading(false)
+  }
+
+  const handleRating = async (rating: string) => {
+    // Navigate to next card
+    if (currentIndex < words.length - 1) {
+      setIsFlipped(false)
+      setCurrentIndex(prev => prev + 1)
+    } else {
+      setSessionComplete(true)
+    }
+  }
+
+  const playAudio = (text: string) => {
+    const utterance = new SpeechSynthesisUtterance(text)
+    utterance.lang = 'he-IL'
+    window.speechSynthesis.speak(utterance)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white font-bold text-slate-400">
+        Loading...
+      </div>
+    )
+  }
+
+  if (sessionComplete) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
+        <div className="text-8xl mb-6">🎉</div>
+        <h1 className="text-4xl font-black text-slate-900 mb-2">Session Complete!</h1>
+        <p className="text-slate-500 mb-8">Great job practicing!</p>
+        <button
+          onClick={() => window.location.href = '/dashboard'}
+          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  if (words.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
+        <div className="text-8xl mb-6">📚</div>
+        <h1 className="text-4xl font-black text-slate-900 mb-2">No cards yet!</h1>
+        <p className="text-slate-500 mb-8">Your teacher needs to import a lesson first.</p>
+        <button
+          onClick={() => window.location.href = '/dashboard'}
+          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
+        >
+          Back to Dashboard
+        </button>
+      </div>
+    )
+  }
+
+  const currentWord = words[currentIndex]
+
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6" dir="ltr">
+      {/* Progress bar */}
+      <div className="w-full max-w-md mb-8 h-2 bg-slate-200 rounded-full overflow-hidden">
+        <div 
+          className="h-full bg-indigo-500 transition-all duration-500"
+          style={{ width: `${((currentIndex + 1) / words.length) * 100}%` }}
+        />
+      </div>
+
+      {/* Flashcard */}
+      <div className="w-full max-w-md aspect-[4/5] relative perspective-1000">
+        <AnimatePresence mode="wait">
+          {!isFlipped ? (
+            <motion.div
+              key="front"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col items-center justify-center cursor-pointer"
+              onClick={() => setIsFlipped(true)}
+            >
+              <p className="text-sm text-slate-400 mb-4">{currentIndex + 1} / {words.length}</p>
+              <h2 className="text-6xl font-black text-slate-900 mb-4" dir="rtl">{currentWord.front}</h2>
+              <p className="text-indigo-600 italic">{currentWord.transliteration}</p>
+              <p className="text-slate-400 mt-8 text-sm">Tap to reveal</p>
+              <button
+                onClick={(e) => { e.stopPropagation(); playAudio(currentWord.front) }}
+                className="mt-4 text-2xl"
+              >
+                🔊
+              </button>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="back"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col"
+            >
+              <div className="flex-1 flex flex-col items-center justify-center">
+                <h3 className="text-4xl font-bold text-slate-900 mb-2">{currentWord.back}</h3>
+                <p className="text-slate-500 mb-4">{currentWord.category}</p>
+                <p className="text-2xl text-slate-700" dir="rtl">{currentWord.front}</p>
+              </div>
+              
+              {/* Rating buttons */}
+              <div className="grid grid-cols-4 gap-2">
+                {['Again', 'Hard', 'Good', 'Easy'].map(rating => (
+                  <button
+                    key={rating}
+                    onClick={() => handleRating(rating)}
+                    className={`py-3 rounded-xl font-bold text-sm transition-all ${
+                      rating === 'Again' ? 'bg-red-100 text-red-600 hover:bg-red-200' :
+                      rating === 'Hard' ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' :
+                      rating === 'Good' ? 'bg-green-100 text-green-600 hover:bg-green-200' :
+                      'bg-blue-100 text-blue-600 hover:bg-blue-200'
+                    }`}
+                  >
+                    {rating}
+                  </button>
+                ))}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  )
 }
 </file>
 

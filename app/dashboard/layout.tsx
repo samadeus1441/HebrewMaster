@@ -53,12 +53,12 @@ export default function DashboardLayout({
 
   const links = [
     { name: t('nav.dashboard'), href: '/dashboard', icon: HomeIcon },
+    { name: '📚 My Lessons', href: '/dashboard/lessons', icon: BookOpenIcon, special: true },
+    { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
+    { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon },
+    { name: '💬 Conversations', href: '/dashboard/conversations', icon: ChatBubbleLeftRightIcon },
     { name: t('nav.alphabet'), href: '/dashboard/alphabet', icon: LanguageIcon },
     { name: t('nav.nikud'), href: '/dashboard/nikud', icon: AcademicCapIcon },
-    { name: t('nav.vocabulary'), href: '/dashboard/vocabulary', icon: BookOpenIcon },
-    { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
-    { name: '💬 Conversations', href: '/dashboard/conversations', icon: ChatBubbleLeftRightIcon, special: true },
-    { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon, special: true },
   ];
 
   const handleLogout = async () => {

@@ -1,213 +1,293 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import toast from 'react-hot-toast';
-import { createClient } from '@/lib/supabase-client';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { XP_REWARDS } from '@/lib/xp-system';
 
-const supabase = createClient();
+interface Question {
+  id: string;
+  hebrew: string;
+  transliteration?: string;
+  correctAnswer: string;
+  options: string[];
+}
 
 export default function QuizPage() {
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [currentQ, setCurrentQ] = useState<any>(null);
-  const [options, setOptions] = useState<any[]>([]);
+  const { t } = useLanguage();
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [score, setScore] = useState(0);
-  const [displayScore, setDisplayScore] = useState(0);
+  const [sessionXP, setSessionXP] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [showResult, setShowResult] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [gameState, setGameState] = useState<'playing' | 'correct' | 'wrong' | 'finished'>('playing');
-  const [mistakes, setMistakes] = useState<any[]>([]);
+  const [quizComplete, setQuizComplete] = useState(false);
 
-  useEffect(() => { startNewGame(); }, []);
-
-  useEffect(() => {
-    if (gameState === 'finished' && score > 0) {
-      let start = 0;
-      const duration = 1500;
-      const increment = score / (duration / 20);
-      const timer = setInterval(() => {
-        start += increment;
-        if (start >= score) {
-          setDisplayScore(score);
-          clearInterval(timer);
-        } else {
-          setDisplayScore(Math.floor(start));
-        }
-      }, 20);
-      return () => clearInterval(timer);
-    }
-  }, [gameState, score]);
-
-  const playFeedback = async (type: 'success' | 'error' | 'word') => {
-    try {
-      if (type === 'word') {
-        const utterance = new SpeechSynthesisUtterance(currentQ.front);
-        utterance.lang = 'he-IL';
-        window.speechSynthesis.speak(utterance);
-      } else {
-        const url = type === 'success'
-          ? 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3'
-          : 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3';
-        new Audio(url).play();
-      }
-    } catch (e) {}
-  };
-
-  async function startNewGame() {
-    setLoading(true);
-    setScore(0);
-    setDisplayScore(0);
-    setMistakes([]);
-    setGameState('playing');
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    
-    const { data } = await supabase
-      .from('srs_cards')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('source', 'lesson')
-      .limit(50);
-      
-    if (data && data.length > 0) {
-      const shuffled = data.sort(() => 0.5 - Math.random());
-      setQuestions(shuffled);
-      generateQuestion(shuffled[0], shuffled);
-    }
-    setLoading(false);
-  }
-
-  function generateQuestion(target: any, allWords: any[]) {
-    const distractors = allWords.filter(w => w.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 3);
-    const mixedOptions = [...distractors, target].sort(() => 0.5 - Math.random());
-    setCurrentQ(target);
-    setOptions(mixedOptions);
-    setGameState('playing');
-  }
-
-  const handleAnswer = async (selectedId: string) => {
-    if (gameState !== 'playing') return;
-    const isCorrect = selectedId === currentQ.id;
-
-    if (isCorrect) {
-      setGameState('correct');
-      setScore(prev => prev + 10);
-      playFeedback('success');
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('srs_cards').upsert({
-          user_id: user.id,
-          front: currentQ.front,
-          back: currentQ.back,
-          stability: 0.1,
-          next_review: new Date().toISOString(),
-          reps: 1
-        }, { onConflict: 'user_id, front' });
-      }
-    } else {
-      setGameState('wrong');
-      setMistakes(prev => [...prev, currentQ]);
-      playFeedback('error');
-    }
-
-    setTimeout(() => {
-      const nextIndex = questions.indexOf(currentQ) + 1;
-      if (nextIndex < 10 && nextIndex < questions.length) {
-        generateQuestion(questions[nextIndex], questions);
-      } else {
-        setGameState('finished');
-        const finalScore = score + (isCorrect ? 10 : 0);
-        if (finalScore >= 70) confetti();
-        saveProgress(finalScore);
-      }
-    }, isCorrect ? 800 : 1500);
-  };
-
-  async function saveProgress(finalScore: number) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.rpc('update_user_xp', {
-      user_id_input: user.id,
-      xp_to_add: finalScore
-    });
-    if (!error) toast.success(`Success! +${finalScore} XP added`, { icon: '⚡' });
-  }
-
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">Loading Quiz...</div>;
-
-  if (gameState === 'finished') return (
-    <div className="max-w-2xl mx-auto p-8 flex flex-col items-center min-h-screen bg-slate-50 pt-16" dir="ltr">
-      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl mb-4">🏆</motion.div>
-      <h1 className="text-4xl font-black text-slate-900 mb-2 text-center">Quiz Results</h1>
-      <div className="w-full bg-white rounded-[40px] shadow-2xl border border-slate-100 p-10 text-center mb-8">
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2 text-center">XP Earned</p>
-        <div className="text-7xl font-black text-indigo-600 mb-6 text-center">{displayScore}</div>
-        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-4">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${(score / 100) * 100}%` }} className="h-full bg-indigo-500" /> 
-        </div>
-      </div>
-      {mistakes.length > 0 && (
-        <div className="w-full bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100 mb-8 text-left">
-          <div className="bg-slate-900 p-4 text-white font-bold text-center">Words to Review</div>
-          <table className="w-full border-collapse">
-            <tbody>
-              {mistakes.map((word, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="p-4 text-2xl font-bold text-right text-slate-800" dir="rtl">{word.front}</td>
-                  <td className="p-4 text-slate-600 font-medium">{word.back}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <button onClick={startNewGame} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all">Start New Quiz</button>
-    </div>
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
-  return (
-    <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[90vh]" dir="ltr">
-      <div className="w-full max-w-2xl">
-        <div className="flex justify-between items-center mb-8 font-bold">
-          <span className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 text-slate-900">
-            {questions.indexOf(currentQ) + 1} / 10
-          </span>
-          <span className="bg-indigo-600 px-6 py-2 rounded-xl text-white shadow-lg">{score} XP</span>
-        </div>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQ.id}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className={`w-full bg-white rounded-[40px] shadow-xl p-12 text-center mb-10 border-4 transition-all duration-300 ${ 
-              gameState === 'correct' ? 'border-green-500 bg-green-50/30' :
-              gameState === 'wrong' ? 'border-red-500 bg-red-50/30' : 'border-slate-50'
-            }`}
+  useEffect(() => {
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: cards } = await supabase
+        .from('srs_cards')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(10);
+
+      if (!cards || cards.length < 4) {
+        setLoading(false);
+        return;
+      }
+
+      // Generate quiz questions
+      const quizQuestions: Question[] = cards.slice(0, 10).map((card, index) => {
+        // Get 3 random wrong answers
+        const wrongAnswers = cards
+          .filter(c => c.id !== card.id)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3)
+          .map(c => c.back);
+
+        // Combine and shuffle
+        const options = [card.back, ...wrongAnswers].sort(() => Math.random() - 0.5);
+
+        return {
+          id: card.id,
+          hebrew: card.front,
+          transliteration: card.transliteration,
+          correctAnswer: card.back,
+          options,
+        };
+      });
+
+      setQuestions(quizQuestions);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const awardXP = async (xpAmount: number) => {
+    try {
+      const response = await fetch('/api/award-xp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ xpAmount }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSessionXP(prev => prev + xpAmount);
+        
+        if (data.leveledUp) {
+          confetti({ particleCount: 300, spread: 120 });
+          setTimeout(() => {
+            alert(`🎉 LEVEL UP! You reached ${data.newLevel}!`);
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('XP award error:', error);
+    }
+  };
+
+  const handleAnswer = async (answer: string) => {
+    if (showResult) return;
+
+    const correct = answer === questions[currentIndex].correctAnswer;
+    setSelectedAnswer(answer);
+    setIsCorrect(correct);
+    setShowResult(true);
+
+    if (correct) {
+      setScore(score + 1);
+      await awardXP(XP_REWARDS.QUIZ_CORRECT);
+      confetti({ particleCount: 50, spread: 60 });
+    } else {
+      await awardXP(XP_REWARDS.QUIZ_WRONG);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setSelectedAnswer(null);
+      setShowResult(false);
+      setIsCorrect(false);
+    } else {
+      setQuizComplete(true);
+      confetti({ particleCount: 200, spread: 90 });
+    }
+  };
+
+  const restartQuiz = () => {
+    setCurrentIndex(0);
+    setScore(0);
+    setSessionXP(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setQuizComplete(false);
+    fetchQuestions();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-2xl font-bold text-slate-400">Loading quiz...</div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="text-4xl mb-4">📚</div>
+        <div className="text-2xl font-bold text-slate-700">Not enough cards!</div>
+        <div className="text-slate-500">Complete lessons to unlock quizzes</div>
+      </div>
+    );
+  }
+
+  if (quizComplete) {
+    const percentage = Math.round((score / questions.length) * 100);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white rounded-3xl p-12 shadow-2xl max-w-2xl w-full text-center"
+        >
+          <div className="text-8xl mb-6">🎉</div>
+          <h1 className="text-5xl font-black text-slate-900 mb-4">Quiz Complete!</h1>
+          <div className="text-7xl font-black text-indigo-600 mb-2">
+            {score}/{questions.length}
+          </div>
+          <div className="text-2xl text-slate-600 mb-8">{percentage}% Correct</div>
+          
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 mb-8">
+            <div className="text-3xl font-black text-slate-900">
+              ⭐ +{sessionXP} XP Earned!
+            </div>
+          </div>
+
+          <button
+            onClick={restartQuiz}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-12 py-4 rounded-2xl font-black text-xl shadow-lg transition-all"
           >
-            <h1 className="text-8xl font-black text-slate-900 mb-6 leading-tight text-center" dir="rtl">{currentQ.front}</h1>
-            <button onClick={() => playFeedback('word')} className="text-indigo-600 font-bold flex items-center space-x-2 mx-auto px-6 py-3 rounded-full hover:bg-indigo-50 transition-colors">
-              <span>🔊</span><span>Listen</span>
-            </button>
-          </motion.div>
-        </AnimatePresence>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => handleAnswer(opt.id)}
-              disabled={gameState !== 'playing'}
-              className={`p-6 rounded-3xl text-xl font-bold transition-all border-2 text-left px-8 shadow-sm
-                ${gameState === 'playing' ? 'bg-white border-slate-100 hover:border-indigo-300 text-slate-700' : ''}
-                ${opt.id === currentQ.id && (gameState === 'correct' || gameState === 'wrong') ? 'bg-green-500 text-white border-green-600' : ''}
-                ${gameState === 'wrong' && opt.id !== currentQ.id ? 'bg-red-50 border-red-200 text-red-400 opacity-50' : ''}    
-              `}
-            >
-              {opt.back}
-            </button>
-          ))}
+            Take Another Quiz
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentIndex];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900">🎯 Quiz Mode</h1>
+              <p className="text-slate-600 mt-1">
+                Question {currentIndex + 1} of {questions.length}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-black text-indigo-600">{score}</div>
+              <div className="text-sm text-slate-500">Correct</div>
+            </div>
+          </div>
+          
+          {sessionXP > 0 && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+              <div className="text-lg font-black text-slate-900">
+                ⭐ Session XP: +{sessionXP}
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Question */}
+        <div className="bg-white rounded-3xl p-12 shadow-2xl mb-8 text-center">
+          <div className="text-7xl font-black text-slate-900 mb-4" dir="rtl">
+            {currentQuestion.hebrew}
+          </div>
+          {currentQuestion.transliteration && (
+            <div className="text-2xl text-indigo-600 italic font-semibold">
+              {currentQuestion.transliteration}
+            </div>
+          )}
+        </div>
+
+        {/* Options */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {currentQuestion.options.map((option, index) => {
+            const isSelected = selectedAnswer === option;
+            const isCorrectAnswer = option === currentQuestion.correctAnswer;
+            
+            let bgColor = 'bg-white hover:bg-indigo-50 border-slate-200';
+            if (showResult) {
+              if (isCorrectAnswer) {
+                bgColor = 'bg-green-100 border-green-400';
+              } else if (isSelected && !isCorrect) {
+                bgColor = 'bg-red-100 border-red-400';
+              }
+            } else if (isSelected) {
+              bgColor = 'bg-indigo-100 border-indigo-400';
+            }
+
+            return (
+              <button
+                key={index}
+                onClick={() => handleAnswer(option)}
+                disabled={showResult}
+                className={`${bgColor} border-2 rounded-2xl p-6 text-xl font-bold text-slate-900 transition-all shadow-lg disabled:cursor-not-allowed`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Result & Next Button */}
+        <AnimatePresence>
+          {showResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="text-center"
+            >
+              <div className={`text-3xl font-black mb-6 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                {isCorrect ? `✅ Correct! +${XP_REWARDS.QUIZ_CORRECT} XP` : `❌ Wrong! +${XP_REWARDS.QUIZ_WRONG} XP`}
+              </div>
+              <button
+                onClick={handleNext}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-12 py-4 rounded-2xl font-black text-xl shadow-lg transition-all"
+              >
+                {currentIndex < questions.length - 1 ? 'Next Question →' : 'Finish Quiz 🎉'}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

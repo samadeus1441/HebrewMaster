@@ -40,7 +40,7 @@ export default function DashboardPage() {
   });
   const [recentLessons, setRecentLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userEmail, setUserEmail] = useState('');
+  const [userName, setUserName] = useState('');
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -56,7 +56,15 @@ export default function DashboardPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
-      setUserEmail(user.email || '');
+      // Get user profile with first name
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('first_name')
+        .eq('user_id', user.id)
+        .single();
+
+      const displayName = profileData?.first_name || user.email?.split('@')[0] || 'Student';
+      setUserName(displayName);
 
       // Get or create user profile
       let { data: profile } = await supabase
@@ -135,7 +143,7 @@ export default function DashboardPage() {
         {/* Welcome Header */}
         <div className="mb-12">
           <h1 className="text-5xl font-black text-slate-900 mb-2" dir="rtl">
-            שָׁלוֹם, {userEmail.split('@')[0]}! 👋
+            שָׁלוֹם, {userName}! 👋
           </h1>
           <p className="text-xl text-slate-600">Welcome back to your Hebrew journey</p>
         </div>

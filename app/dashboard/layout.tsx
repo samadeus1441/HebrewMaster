@@ -6,22 +6,17 @@ import { Toaster } from 'react-hot-toast';
 import { createBrowserClient } from '@supabase/ssr';
 import {
   HomeIcon,
-  LanguageIcon,
   BookOpenIcon,
-  QueueListIcon,
   SparklesIcon,
   AcademicCapIcon,
-  Cog6ToothIcon,
   ArrowLeftOnRectangleIcon,
   Bars3Icon,
   XMarkIcon,
-  UserCircleIcon,
-  ChatBubbleLeftRightIcon
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
-import clsx from 'clsx';
 import { useState, useEffect } from 'react';
 import { useLanguage } from '@/app/context/LanguageContext';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { getLevelFromXP } from '@/hooks/useGameification';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +30,8 @@ export default function DashboardLayout({
   const { t } = useLanguage();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userXP, setUserXP] = useState(0);
+  const [userStreak, setUserStreak] = useState(0);
 
   const [supabase] = useState(() =>
     createBrowserClient(
@@ -46,19 +43,32 @@ export default function DashboardLayout({
   useEffect(() => {
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserEmail(user.email ?? null);
+      if (user) {
+        setUserEmail(user.email ?? null);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('xp, streak')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setUserXP(profile.xp || 0);
+          setUserStreak(profile.streak || 0);
+        }
+      }
     };
     getUser();
   }, [supabase]);
 
+  const levelInfo = getLevelFromXP(userXP);
+
   const links = [
-    { name: t('nav.dashboard'), href: '/dashboard', icon: HomeIcon },
-    { name: '📚 My Lessons', href: '/dashboard/lessons', icon: BookOpenIcon, special: true },
-    { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
-    { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon },
-    { name: '💬 Conversations', href: '/dashboard/conversations', icon: ChatBubbleLeftRightIcon },
-    { name: t('nav.alphabet'), href: '/dashboard/alphabet', icon: LanguageIcon },
-    { name: t('nav.nikud'), href: '/dashboard/nikud', icon: AcademicCapIcon },
+    { name: '🏠 ' + t('nav.dashboard'), href: '/dashboard', match: (p: string) => p === '/dashboard' },
+    { name: '📚 My Lessons', href: '/dashboard/lessons', match: (p: string) => p === '/dashboard/lessons' },
+    { name: '🃏 ' + t('nav.flashcards'), href: '/dashboard/practice', match: (p: string) => p === '/dashboard/practice' },
+    { name: '🎯 ' + t('nav.quiz'), href: '/dashboard/quiz', match: (p: string) => p === '/dashboard/quiz' },
+    { name: '💬 Conversations', href: '/dashboard/conversations', match: (p: string) => p === '/dashboard/conversations' },
+    { name: '🔤 ' + t('nav.alphabet'), href: '/dashboard/alphabet', match: (p: string) => p === '/dashboard/alphabet' },
+    { name: '✡️ ' + t('nav.nikud'), href: '/dashboard/nikud', match: (p: string) => p === '/dashboard/nikud' },
   ];
 
   const handleLogout = async () => {
@@ -68,97 +78,196 @@ export default function DashboardLayout({
   };
 
   return (
-    <div className="flex h-screen bg-slate-50" dir="ltr">
+    <div className="flex h-screen" style={{ background: 'var(--hm-bg)' }} dir="ltr">
       <Toaster position="top-center" />
 
       {/* Mobile Menu Button */}
       <div className="md:hidden fixed top-4 right-4 z-50">
         <button
           onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 bg-slate-900 text-white rounded-lg shadow-lg"
+          style={{
+            padding: 10,
+            background: 'var(--hm-blue)',
+            color: 'white',
+            borderRadius: 12,
+            border: 'none',
+            boxShadow: 'var(--hm-shadow-md)',
+            cursor: 'pointer',
+          }}
         >
           {isMobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
         </button>
       </div>
 
       {/* Sidebar */}
-      <aside className={clsx(
-        "bg-slate-900 text-white flex flex-col shadow-xl transition-all duration-300 z-40",
-        {
-          "fixed inset-0 w-full": isMobileMenuOpen,
-          "hidden md:flex md:w-64 md:static": !isMobileMenuOpen
-        }
-      )}>
-        <div className="p-8">
-          <h1 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            HEBREW MASTER
-          </h1>
+      <aside
+        className={`${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static z-40 w-[260px] h-full transition-transform duration-200`}
+        style={{
+          background: 'white',
+          borderRight: '1px solid var(--hm-border)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Logo */}
+        <div style={{ padding: '24px 20px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, var(--hm-blue), var(--hm-blue-light))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+            }}>🇮🇱</div>
+            <span style={{
+              fontFamily: '"Fraunces", serif',
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--hm-text)',
+              letterSpacing: '-0.02em',
+            }}>Hebrew Master</span>
+          </div>
         </div>
 
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-          {links.map((link) => {
-            const LinkIcon = link.icon;
-            const isActive = pathname === link.href;
+        {/* Level Badge */}
+        <div style={{
+          margin: '0 16px 16px',
+          padding: '14px 16px',
+          borderRadius: 12,
+          background: 'linear-gradient(135deg, #F0F4F8 0%, #E8EEF4 100%)',
+          border: '1px solid var(--hm-border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                fontFamily: '"Frank Ruhl Libre", serif',
+                fontSize: 20,
+                color: 'var(--hm-blue)',
+                direction: 'rtl',
+              }}>{levelInfo.name}</span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--hm-text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}>Level {levelInfo.level}</span>
+            </div>
+            {userStreak > 0 && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F97316' }}>
+                🔥 {userStreak}
+              </span>
+            )}
+          </div>
+          <div className="hm-progress-bar">
+            <div className="hm-progress-fill" style={{ width: `${levelInfo.progress * 100}%` }} />
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: 'var(--hm-text-muted)',
+            marginTop: 6,
+            fontWeight: 500,
+          }}>
+            {userXP} XP {levelInfo.nextLevel && `· ${levelInfo.xpNeeded - levelInfo.xpInLevel} to ${levelInfo.nextLevel}`}
+          </div>
+        </div>
 
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={clsx(
-                  "flex items-center space-x-3 p-3 rounded-2xl transition-all font-medium",
-                  {
-                    "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 font-bold": isActive,
-                    "hover:bg-white/10 text-slate-300": !isActive,
-                    "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20": link.special && !isActive
-                  }
-                )}
-              >
-                <LinkIcon className="w-5 h-5" />
-                <span>{link.name}</span>
-              </Link>
-            );
-          })}
+        {/* Nav Links */}
+        <nav style={{ flex: 1, padding: '0 12px', overflow: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {links.map((link) => {
+              const isActive = link.match(pathname);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--hm-blue)' : 'var(--hm-text-secondary)',
+                    background: isActive ? 'var(--hm-blue-pale)' : 'transparent',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.background = '#F5F5F3';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
+          </div>
         </nav>
 
-        {/* User Panel + Language Switcher */}
-        <div className="p-6 border-t border-white/5 space-y-4">
+        {/* User & Logout */}
+        <div style={{ padding: 16, borderTop: '1px solid var(--hm-border)' }}>
           {userEmail && (
-            <div className="flex items-center space-x-3 p-2 bg-white/5 rounded-2xl border border-white/5">
-              <UserCircleIcon className="w-10 h-10 text-indigo-400 flex-none" />
-              <div className="overflow-hidden">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{t('dashboard.student')}</p>
-                <p className="text-sm text-slate-200 truncate font-medium">{userEmail}</p>
-              </div>
-            </div>
+            <div style={{
+              fontSize: 12,
+              color: 'var(--hm-text-muted)',
+              marginBottom: 8,
+              padding: '0 8px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>{userEmail}</div>
           )}
-
-          {/* Language Switcher */}
-          <div className="px-2">
-            <LanguageSwitcher />
-          </div>
-
-          <div className="space-y-1">
-            <Link href="/dashboard/settings" className="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white transition-colors">
-              <Cog6ToothIcon className="w-5 h-5" />
-              <span>{t('nav.settings')}</span>
-            </Link>
-
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
-            >
-              <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-              <span>{t('nav.logout')}</span>
-            </button>
-          </div>
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 10,
+              background: 'none',
+              border: 'none',
+              color: 'var(--hm-text-muted)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#EF4444';
+              e.currentTarget.style.background = '#FEF2F2';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--hm-text-muted)';
+              e.currentTarget.style.background = 'none';
+            }}
+          >
+            <ArrowLeftOnRectangleIcon className="w-4 h-4" />
+            Log Out
+          </button>
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 pt-20 md:p-12">
-          {children}
-        </div>
+      {/* Overlay for mobile */}
+      {isMobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto" style={{ background: 'var(--hm-bg)' }}>
+        {children}
       </main>
     </div>
   );

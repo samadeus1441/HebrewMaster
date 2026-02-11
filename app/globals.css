@@ -1,27 +1,173 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Frank+Ruhl+Libre:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --font-heebo: 'Heebo', sans-serif;
-  --font-frank-ruhl-libre: 'Frank Ruhl Libre', serif;
+  --hm-blue: #1E3A5F;
+  --hm-blue-light: #2D5F8A;
+  --hm-blue-pale: #E8EEF4;
+  --hm-gold: #F59E0B;
+  --hm-gold-light: #FEF3C7;
+  --hm-green: #10B981;
+  --hm-green-light: #D1FAE5;
+  --hm-red: #EF4444;
+  --hm-red-light: #FEE2E2;
+  --hm-orange: #F97316;
+  --hm-bg: #FAFAF8;
+  --hm-card: #FFFFFF;
+  --hm-border: #E5E5E0;
+  --hm-border-hover: #1E3A5F;
+  --hm-text: #1A1A2E;
+  --hm-text-secondary: #6B7280;
+  --hm-text-muted: #9CA3AF;
+  --hm-shadow-sm: 0 1px 3px rgba(26,26,46,0.06), 0 4px 12px rgba(26,26,46,0.03);
+  --hm-shadow-md: 0 2px 8px rgba(26,26,46,0.08), 0 8px 24px rgba(26,26,46,0.05);
+  --hm-shadow-lg: 0 4px 16px rgba(26,26,46,0.1), 0 12px 40px rgba(26,26,46,0.06);
+  --hm-radius: 16px;
+  --hm-radius-sm: 12px;
+  --hm-radius-xs: 8px;
 }
 
-html {
-  direction: rtl;
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 body {
-  @apply bg-white text-gray-900;
-  font-family: var(--font-heebo);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--hm-bg);
+  color: var(--hm-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  .font-hebrew {
-    font-family: var(--font-heebo);
+.font-display {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+.font-hebrew {
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif;
+}
+
+.font-body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.hm-card {
+  background: var(--hm-card);
+  border-radius: var(--hm-radius);
+  border: 1px solid var(--hm-border);
+  box-shadow: var(--hm-shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.hm-card:hover {
+  box-shadow: var(--hm-shadow-md);
+  border-color: rgba(30, 58, 95, 0.15);
+}
+
+.hm-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hm-shadow-lg);
+}
+
+.hm-btn-primary {
+  background: linear-gradient(135deg, var(--hm-blue) 0%, var(--hm-blue-light) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--hm-radius-sm);
+  padding: 12px 24px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.hm-btn-primary:hover {
+  opacity: 0.92;
+}
+
+.hm-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.hm-btn-outline {
+  background: white;
+  color: var(--hm-blue);
+  border: 2px solid var(--hm-blue);
+  border-radius: var(--hm-radius-sm);
+  padding: 10px 24px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.hm-btn-outline:hover {
+  background: var(--hm-blue);
+  color: white;
+}
+
+.hm-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--hm-border);
+  overflow: hidden;
+}
+
+.hm-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--hm-blue) 0%, var(--hm-blue-light) 100%);
+  transition: width 0.6s ease;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+@media (max-width: 768px) {
+  .hm-stat-value {
+    font-size: 22px;
   }
 }

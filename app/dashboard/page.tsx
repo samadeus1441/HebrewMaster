@@ -1,310 +1,299 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
+export const dynamic = 'force-dynamic';
+
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import { useLanguage } from '@/app/context/LanguageContext';
-import { getLevelFromXP, getNextLevel } from '@/lib/xp-system';
+import { getLevelFromXP } from '@/hooks/useGameification';
 
-interface UserProfile {
-  xp: number;
-  level: number;
-  streak: number;
-  total_reviews: number;
-}
-
-interface DashboardStats {
-  totalCards: number;
-  dueCards: number;
-  lessonsCompleted: number;
-  wordsLearned: number;
-  streak: number;
-  level: number;
-  levelName: string;
-  xp: number;
-  nextLevelXP: number;
-}
-
-export default function DashboardPage() {
+export default function Dashboard() {
+  const router = useRouter();
   const { t } = useLanguage();
-  const [stats, setStats] = useState<DashboardStats>({
-    totalCards: 0,
-    dueCards: 0,
-    lessonsCompleted: 0,
-    wordsLearned: 0,
-    streak: 0,
-    level: 1,
-    levelName: 'אָלֶף',
-    xp: 0,
-    nextLevelXP: 100,
-  });
+  const [stats, setStats] = useState({ xp: 0, streak: 0, wordsLearned: 0, dueCards: 0, mastered: 0, lessonsCompleted: 0 });
   const [recentLessons, setRecentLessons] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState('Student');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
   );
 
   useEffect(() => {
-    fetchDashboardData();
+    loadDashboardData();
   }, []);
 
-  const fetchDashboardData = async () => {
+  const loadDashboardData = async () => {
     try {
+      setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) { router.push('/login'); return; }
 
-      // Get user profile with first name - FIXED: changed user_id to id
-      const { data: profileData } = await supabase
+      // Get profile
+      const { data: profile } = await supabase
         .from('profiles')
-        .select('first_name')
-        .eq('id', user.id)  // ✅ CHANGED FROM user_id TO id
+        .select('xp, streak, display_name')
+        .eq('id', user.id)
         .single();
 
-      const displayName = profileData?.first_name || user.email?.split('@')[0] || 'Student';
-      setUserName(displayName);
+      setUserName(profile?.display_name || user.email?.split('@')[0] || 'Student');
 
-      // Get or create user profile
-      let { data: profile } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!profile) {
-        const { data: newProfile } = await supabase
-          .from('user_profiles')
-          .insert({
-            user_id: user.id,
-            xp: 0,
-            level: 1,
-            streak: 0,
-          })
-          .select()
-          .single();
-        profile = newProfile;
-      }
-
-      const currentLevel = getLevelFromXP(profile?.xp || 0);
-      const nextLevel = getNextLevel(currentLevel.level);
-
-      // Fetch cards stats
-      const { data: cards } = await supabase
+      // Get SRS cards
+      const { data: srsData } = await supabase
         .from('srs_cards')
         .select('*')
         .eq('user_id', user.id);
 
-      const now = new Date();
-      const dueCards = cards?.filter(card => new Date(card.next_review) <= now) || [];
+      const lessonCards = (srsData || []).filter(c => c.source === 'lesson');
+      const dueCards = lessonCards.filter(c => new Date(c.due_date) <= new Date());
+      const mastered = lessonCards.filter(c => c.stability >= 5);
 
-      // Fetch lessons
+      // Get lessons
       const { data: lessons } = await supabase
         .from('lessons')
-        .select('*')
+        .select('id, lesson_number, topic_title, lesson_date, summary, talk_ratio_student, hebrew_percentage')
         .eq('student_user_id', user.id)
-        .order('lesson_date', { ascending: false })
+        .order('lesson_number', { ascending: false })
         .limit(3);
 
       setRecentLessons(lessons || []);
 
       setStats({
-        totalCards: cards?.length || 0,
-        dueCards: dueCards.length,
-        lessonsCompleted: lessons?.length || 0,
-        wordsLearned: cards?.length || 0,
-        streak: profile?.streak || 0,
-        level: currentLevel.level,
-        levelName: currentLevel.name,
         xp: profile?.xp || 0,
-        nextLevelXP: nextLevel.xpRequired,
+        streak: profile?.streak || 0,
+        wordsLearned: lessonCards.length,
+        dueCards: dueCards.length,
+        mastered: mastered.length,
+        lessonsCompleted: lessons?.length || 0,
       });
-    } catch (err) {
-      console.error('Error:', err);
+    } catch (error) {
+      console.error('Dashboard Error:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const progressPercentage = ((stats.xp / stats.nextLevelXP) * 100) || 0;
+  const levelInfo = getLevelFromXP(stats.xp);
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-2xl font-bold text-slate-400">Loading your journey...</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{
+          width: 40, height: 40,
+          border: '3px solid var(--hm-border)',
+          borderTopColor: 'var(--hm-blue)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <div className="max-w-7xl mx-auto p-6 md:p-12">
-        {/* Welcome Header */}
-        <div className="mb-12">
-          <h1 className="text-5xl font-black text-slate-900 mb-2" dir="rtl">
-            שָׁלוֹם, {userName}! 👋
-          </h1>
-          <p className="text-xl text-slate-600">Welcome back to your Hebrew journey</p>
-        </div>
+    <div style={{ padding: '32px 28px', maxWidth: 900, margin: '0 auto' }}>
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-indigo-100">
-            <div className="text-sm font-bold text-indigo-600 uppercase tracking-wider mb-2">
-              Lessons Complete
+      {/* Greeting */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{
+          fontFamily: '"Fraunces", serif',
+          fontSize: 32,
+          fontWeight: 700,
+          color: 'var(--hm-text)',
+          marginBottom: 4,
+        }}>
+          שלום, {userName} 👋
+        </h1>
+        <p style={{ color: 'var(--hm-text-secondary)', fontSize: 15 }}>
+          {stats.dueCards > 0
+            ? `You have ${stats.dueCards} cards waiting for review`
+            : "You're all caught up! Great work."
+          }
+        </p>
+      </div>
+
+      {/* Stats Row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: 12,
+        marginBottom: 28,
+      }}>
+        {[
+          { value: stats.lessonsCompleted, label: 'Lessons', icon: '📚' },
+          { value: stats.wordsLearned, label: 'Words Learned', icon: '📝' },
+          { value: stats.mastered, label: 'Mastered', icon: '⭐' },
+          { value: stats.streak > 0 ? `🔥 ${stats.streak}` : '—', label: 'Day Streak', icon: '' },
+        ].map((stat, i) => (
+          <div key={i} className="hm-card" style={{ padding: '18px 16px', textAlign: 'center' }}>
+            <div style={{
+              fontFamily: '"Fraunces", serif',
+              fontSize: 26,
+              fontWeight: 700,
+              color: 'var(--hm-text)',
+              lineHeight: 1.2,
+            }}>
+              {stat.icon && typeof stat.value === 'number' ? `${stat.icon} ${stat.value}` : stat.value}
             </div>
-            <div className="text-5xl font-black text-slate-900 mb-1">
-              {stats.lessonsCompleted}
-            </div>
-            <div className="text-slate-500 text-sm">Keep going!</div>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--hm-text-muted)',
+              marginTop: 4,
+            }}>{stat.label}</div>
           </div>
+        ))}
+      </div>
 
-          <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-amber-100">
-            <div className="text-sm font-bold text-amber-600 uppercase tracking-wider mb-2">
-              Words Learned
-            </div>
-            <div className="text-5xl font-black text-slate-900 mb-1">
-              {stats.wordsLearned}
-            </div>
-            <div className="text-slate-500 text-sm">Your vocabulary</div>
-          </div>
-
-          <div className="bg-white rounded-3xl p-6 shadow-lg border-2 border-orange-100">
-            <div className="text-sm font-bold text-orange-600 uppercase tracking-wider mb-2">
-              Day Streak
-            </div>
-            <div className="text-5xl font-black text-slate-900 mb-1 flex items-center gap-2">
-              🔥 {stats.streak}
-            </div>
-            <div className="text-slate-500 text-sm">Days in a row</div>
-          </div>
-
-          <div className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-3xl p-6 shadow-lg text-white">
-            <div className="text-sm font-bold uppercase tracking-wider mb-2 opacity-90">
-              Your Level
-            </div>
-            <div className="text-5xl font-black mb-1" dir="rtl">
-              {stats.levelName} ⭐
-            </div>
-            <div className="text-sm opacity-90">Level {stats.level}</div>
-          </div>
-        </div>
-
-        {/* XP Progress Bar */}
-        <div className="bg-white rounded-3xl p-8 shadow-lg border-2 border-slate-100 mb-12">
-          <div className="flex items-center justify-between mb-4">
+      {/* Due Cards CTA */}
+      {stats.dueCards > 0 && (
+        <Link href="/dashboard/practice" style={{ textDecoration: 'none' }}>
+          <div className="hm-card hm-card-lift" style={{
+            padding: '20px 24px',
+            marginBottom: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'linear-gradient(135deg, var(--hm-blue) 0%, var(--hm-blue-light) 100%)',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+          }}>
             <div>
-              <h2 className="text-2xl font-black text-slate-900">Progress to Next Level</h2>
-              <p className="text-slate-600">
-                {stats.xp} / {stats.nextLevelXP} XP to reach Level {stats.level + 1}
-              </p>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                🃏 {stats.dueCards} cards due for review
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.8 }}>Practice now to keep your streak alive</div>
             </div>
-            <div className="text-4xl font-black text-indigo-600">
-              {Math.round(progressPercentage)}%
-            </div>
+            <div style={{ fontSize: 28 }}>→</div>
           </div>
-          <div className="w-full bg-slate-100 h-6 rounded-full overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 h-full rounded-full transition-all duration-500"
-              style={{ width: `${progressPercentage}%` }}
-            />
-          </div>
+        </Link>
+      )}
+
+      {/* Recent Lessons */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+        }}>
+          <h2 style={{
+            fontFamily: '"Fraunces", serif',
+            fontSize: 20,
+            fontWeight: 600,
+            color: 'var(--hm-text)',
+          }}>Recent Lessons</h2>
+          <Link href="/dashboard/lessons" style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--hm-blue)',
+            textDecoration: 'none',
+          }}>View all →</Link>
         </div>
 
-        {/* Due Cards Alert */}
-        {stats.dueCards > 0 && (
-          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-3xl p-8 shadow-lg mb-12">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="text-6xl">🃏</div>
-                <div>
-                  <h2 className="text-3xl font-black text-slate-900 mb-1">
-                    {stats.dueCards} cards due for review today
-                  </h2>
-                  <p className="text-slate-600">Keep your memory fresh!</p>
-                </div>
-              </div>
-              <Link
-                href="/dashboard/practice"
-                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-8 py-4 rounded-2xl font-black text-lg shadow-lg transition-all"
-              >
-                Practice Now →
-              </Link>
-            </div>
+        {recentLessons.length === 0 ? (
+          <div className="hm-card" style={{
+            padding: '40px 24px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
+            <p style={{ color: 'var(--hm-text-secondary)', fontSize: 14 }}>
+              Your lesson history will appear here after your first lesson.
+            </p>
           </div>
-        )}
-
-        {/* Recent Lessons */}
-        <div className="mb-12">
-          <h2 className="text-3xl font-black text-slate-900 mb-6">📚 Recent Lessons</h2>
-          <div className="space-y-4">
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {recentLessons.map((lesson) => (
-              <Link
-                key={lesson.id}
-                href="/dashboard/lessons"
-                className="block bg-white rounded-3xl p-6 shadow-lg border-2 border-slate-100 hover:border-indigo-200 transition-all group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-6">
-                    <div className="bg-indigo-100 text-indigo-700 rounded-2xl px-4 py-2 font-black text-2xl">
-                      {lesson.lesson_number || '?'}
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-900 group-hover:text-indigo-600 transition-colors">
-                        {lesson.summary?.split('.')[0] || 'Lesson ' + (lesson.lesson_number || '?')}
-                      </h3>
-                      <p className="text-slate-500">
-                        {new Date(lesson.lesson_date).toLocaleDateString()} • 
-                        {lesson.vocabulary?.length || 0} words
-                      </p>
+              <Link key={lesson.id} href="/dashboard/lessons" style={{ textDecoration: 'none' }}>
+                <div className="hm-card" style={{
+                  padding: '18px 22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  cursor: 'pointer',
+                }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, var(--hm-blue), var(--hm-blue-light))',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: '"Fraunces", serif',
+                    fontSize: 18,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}>{lesson.lesson_number}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: 'var(--hm-text)',
+                      marginBottom: 2,
+                    }}>{lesson.topic_title || `Lesson ${lesson.lesson_number}`}</div>
+                    <div style={{
+                      fontSize: 12,
+                      color: 'var(--hm-text-muted)',
+                      display: 'flex',
+                      gap: 8,
+                    }}>
+                      <span>{formatDate(lesson.lesson_date)}</span>
+                      {lesson.talk_ratio_student && (
+                        <span>· Talk: {lesson.talk_ratio_student}%{lesson.talk_ratio_student >= 50 ? ' 🟢' : lesson.talk_ratio_student >= 35 ? ' 🟡' : ' 🔴'}</span>
+                      )}
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <div className="bg-slate-100 text-slate-700 px-4 py-2 rounded-xl font-bold text-sm">
-                      Review Cards
-                    </div>
-                  </div>
+                  <div style={{ color: 'var(--hm-text-muted)', fontSize: 18 }}>›</div>
                 </div>
               </Link>
             ))}
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Link
-            href="/dashboard/practice"
-            className="bg-white hover:bg-indigo-50 rounded-3xl p-8 shadow-lg border-2 border-slate-100 hover:border-indigo-200 transition-all text-center group"
-          >
-            <div className="text-5xl mb-4">🃏</div>
-            <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-indigo-600">
-              Practice Flashcards
-            </h3>
-            <p className="text-slate-600">Review your vocabulary</p>
-          </Link>
-
-          <Link
-            href="/dashboard/quiz"
-            className="bg-white hover:bg-purple-50 rounded-3xl p-8 shadow-lg border-2 border-slate-100 hover:border-purple-200 transition-all text-center group"
-          >
-            <div className="text-5xl mb-4">🎯</div>
-            <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-purple-600">
-              Take a Quiz
-            </h3>
-            <p className="text-slate-600">Test your knowledge</p>
-          </Link>
-
-          <Link
-            href="/dashboard/conversations"
-            className="bg-white hover:bg-amber-50 rounded-3xl p-8 shadow-lg border-2 border-slate-100 hover:border-amber-200 transition-all text-center group"
-          >
-            <div className="text-5xl mb-4">💬</div>
-            <h3 className="text-xl font-black text-slate-900 mb-2 group-hover:text-amber-600">
-              Practice Conversations
-            </h3>
-            <p className="text-slate-600">Real-life scenarios</p>
-          </Link>
+      {/* Quick Actions */}
+      <div>
+        <h2 style={{
+          fontFamily: '"Fraunces", serif',
+          fontSize: 20,
+          fontWeight: 600,
+          color: 'var(--hm-text)',
+          marginBottom: 16,
+        }}>Quick Actions</h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 12,
+        }}>
+          {[
+            { href: '/dashboard/practice', icon: '🃏', label: 'Flashcards', desc: 'Review your words' },
+            { href: '/dashboard/quiz', icon: '🎯', label: 'Quiz', desc: 'Test yourself' },
+            { href: '/dashboard/conversations', icon: '💬', label: 'Conversations', desc: 'Practice speaking' },
+            { href: '/dashboard/alphabet', icon: '🔤', label: 'Alphabet', desc: 'Reference guide' },
+          ].map((action) => (
+            <Link key={action.href} href={action.href} style={{ textDecoration: 'none' }}>
+              <div className="hm-card hm-card-lift" style={{
+                padding: '20px 18px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>{action.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--hm-text)', marginBottom: 2 }}>{action.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--hm-text-muted)' }}>{action.desc}</div>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
     </div>

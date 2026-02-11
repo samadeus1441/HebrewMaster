@@ -1,250 +1,218 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
-import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
-import { useLanguage } from '@/app/context/LanguageContext';
-import { XP_REWARDS } from '@/lib/xp-system';
+import { useState, useEffect, useCallback } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useLanguage } from '@/app/context/LanguageContext'
+import { useGameification, XP_REWARDS, playSound, fireConfetti } from '@/hooks/useGameification'
+import { XPToast, LevelUpModal, SessionComplete } from '@/components/GameUI'
 
 interface Card {
-  id: string;
-  front: string;
-  back: string;
-  transliteration?: string;
-  source?: string;
-  stability: number;
-  difficulty: number;
-  state: number;
-  reps: number;
+  id: string; front: string; back: string;
+  transliteration?: string; category?: string;
+  stability: number; difficulty: number; reps: number;
 }
 
 export default function PracticePage() {
-  const { t } = useLanguage();
-  const [allCards, setAllCards] = useState<Card[]>([]);
-  const [filteredCards, setFilteredCards] = useState<Card[]>([]);
-  const [lessons, setLessons] = useState<any[]>([]);
-  const [selectedLesson, setSelectedLesson] = useState<string>('all');
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isFlipped, setIsFlipped] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [sessionXP, setSessionXP] = useState(0);
+  const { t } = useLanguage()
+  const { awardXP, xpToast, levelUp, dismissLevelUp } = useGameification()
+  const [allCards, setAllCards] = useState<Card[]>([])
+  const [deck, setDeck] = useState<Card[]>([])
+  const [lessons, setLessons] = useState<any[]>([])
+  const [selectedLesson, setSelectedLesson] = useState('all')
+  const [idx, setIdx] = useState(0)
+  const [flipped, setFlipped] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [sessionXP, setSessionXP] = useState(0)
+  const [sessionScore, setSessionScore] = useState({ good: 0, total: 0 })
+  const [done, setDone] = useState(false)
 
-  const supabase = createBrowserClient(
+  const [supabase] = useState(() => createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  ))
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useEffect(() => { load() }, [])
 
-  const fetchData = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+  const load = async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+    const { data: cards } = await supabase
+      .from('srs_cards').select('*').eq('user_id', user.id)
+      .order('due_date', { ascending: true })
+    const { data: lsns } = await supabase
+      .from('lessons').select('lesson_number, lesson_date, topic_title, vocabulary')
+      .eq('student_user_id', user.id).order('lesson_number', { ascending: false })
+    setAllCards(cards || [])
+    setDeck(cards || [])
+    setLessons(lsns || [])
+    setLoading(false)
+  }
 
-      const { data: cardsData } = await supabase
-        .from('srs_cards')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
+  const filterLesson = (val: string) => {
+    setSelectedLesson(val)
+    setIdx(0); setFlipped(false); setDone(false)
+    if (val === 'all') { setDeck(allCards); return }
+    const lesson = lessons.find(l => l.lesson_number.toString() === val)
+    if (!lesson?.vocabulary) return
+    const words = lesson.vocabulary.map((v: any) => v.front)
+    setDeck(allCards.filter(c => words.includes(c.front)))
+  }
 
-      setAllCards(cardsData || []);
-      setFilteredCards(cardsData || []);
+  const flip = () => { setFlipped(!flipped); playSound('flip') }
 
-      const { data: lessonsData } = await supabase
-        .from('lessons')
-        .select('lesson_number, lesson_date, vocabulary')
-        .eq('student_user_id', user.id)
-        .order('lesson_number', { ascending: false });
+  const playAudio = (text: string) => {
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'he-IL'; u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  }
 
-      setLessons(lessonsData || []);
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const rate = async (rating: 'again' | 'hard' | 'good' | 'easy') => {
+    const xpMap = { again: XP_REWARDS.FLASHCARD_AGAIN, hard: XP_REWARDS.FLASHCARD_HARD, good: XP_REWARDS.FLASHCARD_GOOD, easy: XP_REWARDS.FLASHCARD_EASY }
+    const xp = xpMap[rating]
+    const isGood = rating === 'good' || rating === 'easy'
 
-  const handleLessonFilter = (lessonNum: string) => {
-    setSelectedLesson(lessonNum);
-    setCurrentIndex(0);
-    setIsFlipped(false);
+    if (isGood) playSound('correct')
+    else if (rating === 'again') playSound('wrong')
 
-    if (lessonNum === 'all') {
-      setFilteredCards(allCards);
-      return;
-    }
+    await awardXP(xp)
+    setSessionXP(p => p + xp)
+    setSessionScore(p => ({ good: p.good + (isGood ? 1 : 0), total: p.total + 1 }))
 
-    const lesson = lessons.find(l => l.lesson_number.toString() === lessonNum);
-    if (!lesson) return;
-
-    const lessonWords = lesson.vocabulary.map((v: any) => v.front);
-    const filtered = allCards.filter(card => lessonWords.includes(card.front));
-    setFilteredCards(filtered);
-  };
-
-  const playAudio = async (text: string) => {
-    try {
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text }),
-      });
-      const blob = await response.blob();
-      const audio = new Audio(URL.createObjectURL(blob));
-      audio.play();
-    } catch (error) {
-      console.error('Audio error:', error);
-    }
-  };
-
-  const awardXP = async (xpAmount: number) => {
-    try {
-      const response = await fetch('/api/award-xp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ xpAmount }),
-      });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        setSessionXP(prev => prev + xpAmount);
-        
-        if (data.leveledUp) {
-          confetti({ particleCount: 300, spread: 120 });
-          setTimeout(() => {
-            alert(`🎉 LEVEL UP! You reached ${data.newLevel}!`);
-          }, 500);
-        }
-      }
-    } catch (error) {
-      console.error('XP award error:', error);
-    }
-  };
-
-  const handleRating = async (rating: 'again' | 'hard' | 'good' | 'easy') => {
-    const xpMap = {
-      again: XP_REWARDS.FLASHCARD_AGAIN,
-      hard: XP_REWARDS.FLASHCARD_HARD,
-      good: XP_REWARDS.FLASHCARD_GOOD,
-      easy: XP_REWARDS.FLASHCARD_EASY,
-    };
-
-    await awardXP(xpMap[rating]);
-
-    if (currentIndex < filteredCards.length - 1) {
-      setCurrentIndex(currentIndex + 1);
-      setIsFlipped(false);
+    if (idx < deck.length - 1) {
+      setIdx(idx + 1)
+      setFlipped(false)
     } else {
-      confetti({ particleCount: 200, spread: 90 });
-      setTimeout(() => {
-        alert(`🎉 Session complete! You earned ${sessionXP + xpMap[rating]} XP!`);
-      }, 500);
-      setCurrentIndex(0);
-      setIsFlipped(false);
-      setSessionXP(0);
+      fireConfetti('medium')
+      await awardXP(XP_REWARDS.SESSION_COMPLETE)
+      setSessionXP(p => p + XP_REWARDS.SESSION_COMPLETE)
+      setDone(true)
     }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-2xl font-bold text-slate-400">Loading...</div>
-      </div>
-    );
   }
 
-  if (filteredCards.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen">
-        <div className="text-4xl mb-4">📚</div>
-        <div className="text-2xl font-bold text-slate-700">No cards yet!</div>
-        <div className="text-slate-500">Complete a lesson to start practicing</div>
-      </div>
-    );
+  const restart = () => {
+    setIdx(0); setFlipped(false); setDone(false)
+    setSessionXP(0); setSessionScore({ good: 0, total: 0 })
+    // Reshuffle
+    setDeck([...deck].sort(() => Math.random() - 0.5))
   }
 
-  const currentCard = filteredCards[currentIndex];
+  // Loading
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid #E5E5E0', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+    </div>
+  )
+
+  // Empty
+  if (deck.length === 0) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', textAlign: 'center', padding: 32 }}>
+      <div style={{ fontSize: 56, marginBottom: 16 }}>🃏</div>
+      <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 28, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>No cards yet</h1>
+      <p style={{ color: '#6B7280', fontSize: 15 }}>Complete a lesson to start practicing your vocabulary</p>
+    </div>
+  )
+
+  // Session complete
+  if (done) return (
+    <>
+      <XPToast amount={xpToast.amount} visible={xpToast.visible} />
+      <AnimatePresence>{levelUp && <LevelUpModal {...levelUp} onDismiss={dismissLevelUp} />}</AnimatePresence>
+      <SessionComplete score={sessionScore.good} total={sessionScore.total} xpEarned={sessionXP} onRestart={restart} onExit={() => window.location.href = '/dashboard'} />
+    </>
+  )
+
+  const card = deck[idx]
+  const progress = ((idx + 1) / deck.length) * 100
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header with Filter and XP */}
-        <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg">
-          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-black text-slate-900">🃏 Flashcards</h1>
-              <p className="text-slate-600 mt-1">
-                Card {currentIndex + 1} of {filteredCards.length}
-              </p>
-              {sessionXP > 0 && (
-                <p className="text-indigo-600 font-bold mt-1">
-                  ⭐ Session XP: +{sessionXP}
-                </p>
-              )}
-            </div>
+    <div style={{ padding: '24px 20px', maxWidth: 640, margin: '0 auto', minHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+      <XPToast amount={xpToast.amount} visible={xpToast.visible} />
+      <AnimatePresence>{levelUp && <LevelUpModal {...levelUp} onDismiss={dismissLevelUp} />}</AnimatePresence>
 
-            <div className="flex flex-col gap-2">
-              <label className="text-sm font-bold text-slate-700">Filter by lesson:</label>
-              <select
-                value={selectedLesson}
-                onChange={(e) => handleLessonFilter(e.target.value)}
-                className="px-6 py-3 bg-indigo-50 border-2 border-indigo-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">📚 All Lessons ({allCards.length} cards)</option>
-                {lessons.map((lesson) => (
-                  <option key={lesson.lesson_number} value={lesson.lesson_number}>
-                    Lesson {lesson.lesson_number} - {new Date(lesson.lesson_date).toLocaleDateString()}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+        <div>
+          <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 24, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>Flashcards</h1>
+          <span style={{ fontSize: 13, color: '#9CA3AF' }}>{idx + 1} of {deck.length}</span>
         </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {sessionXP > 0 && (
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', background: '#E8EEF4', padding: '4px 10px', borderRadius: 8 }}>⚡ {sessionXP} XP</span>
+          )}
+          <select
+            value={selectedLesson}
+            onChange={e => filterLesson(e.target.value)}
+            style={{
+              padding: '8px 12px', borderRadius: 10, border: '1px solid #E5E5E0',
+              fontSize: 13, fontWeight: 600, color: '#1A1A2E', background: 'white',
+              cursor: 'pointer', outline: 'none',
+            }}
+          >
+            <option value="all">All ({allCards.length})</option>
+            {lessons.map(l => (
+              <option key={l.lesson_number} value={l.lesson_number}>
+                {l.topic_title || `Lesson ${l.lesson_number}`}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
 
-        {/* Flashcard */}
+      {/* Progress bar */}
+      <div style={{ height: 4, borderRadius: 2, background: '#E5E5E0', marginBottom: 28, overflow: 'hidden' }}>
+        <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} style={{ height: '100%', borderRadius: 2, background: 'linear-gradient(90deg, #1E3A5F, #2D5F8A)' }} />
+      </div>
+
+      {/* Card */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <motion.div
-          className="relative w-full h-96 mb-8 cursor-pointer"
-          onClick={() => setIsFlipped(!isFlipped)}
-          whileHover={{ scale: 1.02 }}
+          onClick={flip}
+          whileHover={{ scale: 1.01 }}
           whileTap={{ scale: 0.98 }}
+          style={{
+            width: '100%', maxWidth: 480, minHeight: 320,
+            cursor: 'pointer', perspective: 1000, marginBottom: 20,
+          }}
         >
           <AnimatePresence mode="wait">
             <motion.div
-              key={isFlipped ? 'back' : 'front'}
+              key={flipped ? 'back' : 'front'}
               initial={{ rotateY: 90, opacity: 0 }}
               animate={{ rotateY: 0, opacity: 1 }}
               exit={{ rotateY: -90, opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center p-8 border-4 border-indigo-100"
+              transition={{ duration: 0.25 }}
+              style={{
+                background: 'white', borderRadius: 20, padding: '48px 32px',
+                border: '1px solid #E5E5E0',
+                boxShadow: '0 2px 8px rgba(26,26,46,0.06), 0 12px 40px rgba(26,26,46,0.04)',
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                minHeight: 320, textAlign: 'center',
+              }}
             >
-              {!isFlipped ? (
+              {!flipped ? (
                 <>
-                  <div className="text-7xl font-black text-slate-900 mb-4" dir="rtl">
-                    {currentCard.front}
-                  </div>
-                  {currentCard.transliteration && (
-                    <div className="text-2xl text-indigo-600 italic font-semibold">
-                      {currentCard.transliteration}
-                    </div>
+                  <div style={{
+                    fontFamily: '"Frank Ruhl Libre", serif', fontSize: 52, fontWeight: 700,
+                    color: '#1A1A2E', direction: 'rtl', marginBottom: 12, lineHeight: 1.2,
+                  }}>{card.front}</div>
+                  {card.transliteration && (
+                    <div style={{ fontSize: 18, color: '#6B7280', fontStyle: 'italic', marginBottom: 16 }}>{card.transliteration}</div>
                   )}
-                  <div className="mt-8 text-slate-400 text-sm">Tap to reveal</div>
+                  {card.category && (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', background: '#F5F5F3', padding: '3px 10px', borderRadius: 20 }}>{card.category}</span>
+                  )}
+                  <div style={{ fontSize: 12, color: '#D1D5DB', marginTop: 24 }}>tap to reveal</div>
                 </>
               ) : (
                 <>
-                  <div className="text-5xl font-bold text-slate-700 mb-4">
-                    {currentCard.back}
-                  </div>
-                  <div className="text-3xl text-slate-900 mb-6" dir="rtl">
-                    {currentCard.front}
-                  </div>
-                  {currentCard.transliteration && (
-                    <div className="text-xl text-indigo-600 italic">
-                      {currentCard.transliteration}
-                    </div>
+                  <div style={{ fontSize: 28, fontWeight: 700, color: '#1A1A2E', marginBottom: 16 }}>{card.back}</div>
+                  <div style={{
+                    fontFamily: '"Frank Ruhl Libre", serif', fontSize: 36, color: '#1E3A5F',
+                    direction: 'rtl', marginBottom: 8,
+                  }}>{card.front}</div>
+                  {card.transliteration && (
+                    <div style={{ fontSize: 16, color: '#6B7280', fontStyle: 'italic' }}>{card.transliteration}</div>
                   )}
                 </>
               )}
@@ -252,53 +220,55 @@ export default function PracticePage() {
           </AnimatePresence>
         </motion.div>
 
-        {/* Audio Button */}
-        <div className="flex justify-center mb-8">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              playAudio(currentCard.front);
-            }}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all flex items-center gap-3"
-          >
-            🔊 Listen
-          </button>
-        </div>
+        {/* Audio */}
+        <button
+          onClick={e => { e.stopPropagation(); playAudio(card.front) }}
+          style={{
+            background: 'none', border: '1px solid #E5E5E0', borderRadius: 12,
+            padding: '10px 20px', fontSize: 14, fontWeight: 600, color: '#6B7280',
+            cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 24,
+            transition: 'all 0.15s',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = '#1E3A5F'; e.currentTarget.style.color = '#1E3A5F' }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E5E0'; e.currentTarget.style.color = '#6B7280' }}
+        >
+          🔊 Listen
+        </button>
 
-        {/* Rating Buttons */}
-        {isFlipped && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-2 md:grid-cols-4 gap-4"
-          >
-            <button
-              onClick={() => handleRating('again')}
-              className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+        {/* Rating buttons */}
+        <AnimatePresence>
+          {flipped && (
+            <motion.div
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.2 }}
+              style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, width: '100%', maxWidth: 480 }}
             >
-              Again<br/>+{XP_REWARDS.FLASHCARD_AGAIN} XP
-            </button>
-            <button
-              onClick={() => handleRating('hard')}
-              className="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
-            >
-              Hard<br/>+{XP_REWARDS.FLASHCARD_HARD} XP
-            </button>
-            <button
-              onClick={() => handleRating('good')}
-              className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
-            >
-              Good<br/>+{XP_REWARDS.FLASHCARD_GOOD} XP
-            </button>
-            <button
-              onClick={() => handleRating('easy')}
-              className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
-            >
-              Easy<br/>+{XP_REWARDS.FLASHCARD_EASY} XP
-            </button>
-          </motion.div>
-        )}
+              {[
+                { key: 'again' as const, label: 'Again', xp: XP_REWARDS.FLASHCARD_AGAIN, bg: '#FEE2E2', border: '#FECACA', color: '#991B1B' },
+                { key: 'hard' as const, label: 'Hard', xp: XP_REWARDS.FLASHCARD_HARD, bg: '#FFF7ED', border: '#FED7AA', color: '#9A3412' },
+                { key: 'good' as const, label: 'Good', xp: XP_REWARDS.FLASHCARD_GOOD, bg: '#E8EEF4', border: '#B7D5E8', color: '#1E3A5F' },
+                { key: 'easy' as const, label: 'Easy', xp: XP_REWARDS.FLASHCARD_EASY, bg: '#D1FAE5', border: '#A7F3D0', color: '#065F46' },
+              ].map(btn => (
+                <button
+                  key={btn.key}
+                  onClick={() => rate(btn.key)}
+                  style={{
+                    background: btn.bg, border: `2px solid ${btn.border}`, borderRadius: 14,
+                    padding: '16px 8px', cursor: 'pointer', textAlign: 'center',
+                    transition: 'transform 0.1s',
+                  }}
+                  onMouseDown={e => (e.currentTarget.style.transform = 'scale(0.96)')}
+                  onMouseUp={e => (e.currentTarget.style.transform = 'scale(1)')}
+                >
+                  <div style={{ fontSize: 15, fontWeight: 700, color: btn.color }}>{btn.label}</div>
+                  <div style={{ fontSize: 11, color: btn.color, opacity: 0.7, marginTop: 2 }}>+{btn.xp} XP</div>
+                </button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
-  );
+  )
 }

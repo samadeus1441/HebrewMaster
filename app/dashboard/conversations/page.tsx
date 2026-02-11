@@ -1,154 +1,273 @@
 'use client'
-import { useEffect, useState } from 'react'
-import { createClient } from '@/lib/supabase-client'
-import { motion } from 'framer-motion'
 
-const supabase = createClient()
+import { useEffect, useState } from 'react'
+import { createBrowserClient } from '@supabase/ssr'
+import { motion, AnimatePresence } from 'framer-motion'
+import { useGameification, XP_REWARDS, playSound, fireConfetti } from '@/hooks/useGameification'
+import { XPToast, LevelUpModal } from '@/components/GameUI'
 
 export default function ConversationsPage() {
+  const { awardXP, xpToast, levelUp, dismissLevelUp } = useGameification()
   const [scenarios, setScenarios] = useState<any[]>([])
-  const [currentScenario, setCurrentScenario] = useState<any>(null)
-  const [dialogueIndex, setDialogueIndex] = useState(0)
+  const [current, setCurrent] = useState<any>(null)
+  const [dialogIdx, setDialogIdx] = useState(0)
   const [userAnswer, setUserAnswer] = useState('')
-  const [feedback, setFeedback] = useState('')
+  const [feedback, setFeedback] = useState<{ text: string; correct: boolean } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [sessionXP, setSessionXP] = useState(0)
 
-  useEffect(() => {
-    loadScenarios()
-  }, [])
+  const [supabase] = useState(() => createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  ))
 
-  async function loadScenarios() {
+  useEffect(() => { load() }, [])
+
+  async function load() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return
-
-    const { data } = await supabase
-      .from('conversation_scenarios')
-      .select('*')
-      .eq('student_id', user.id)
-
+    const { data } = await supabase.from('conversation_scenarios').select('*').eq('student_id', user.id)
     if (data && data.length > 0) {
       setScenarios(data)
-      setCurrentScenario(data[0])
     }
     setLoading(false)
   }
 
-  const handleOptionSelect = (option: any) => {
-    setFeedback(option.feedback)
-    setTimeout(() => {
-      setDialogueIndex(prev => prev + 1)
-      setFeedback('')
-    }, 2000)
+  const start = (scenario: any) => {
+    setCurrent(scenario)
+    setDialogIdx(0)
+    setFeedback(null)
+    setSessionXP(0)
   }
 
-  const handleTextSubmit = () => {
-    setFeedback('מעולה! תשובה נכונה')
+  const handleOption = async (option: any) => {
+    const isCorrect = option.correct !== false
+    setFeedback({ text: option.feedback || (isCorrect ? '!מעולה' : 'Try again'), correct: isCorrect })
+    if (isCorrect) playSound('correct')
+    await awardXP(XP_REWARDS.CONVERSATION_STEP)
+    setSessionXP(p => p + XP_REWARDS.CONVERSATION_STEP)
     setTimeout(() => {
-      setDialogueIndex(prev => prev + 1)
-      setFeedback('')
+      setDialogIdx(p => p + 1)
+      setFeedback(null)
+    }, 1800)
+  }
+
+  const handleText = async () => {
+    if (!userAnswer.trim()) return
+    setFeedback({ text: '!יפה מאוד — Great effort', correct: true })
+    playSound('correct')
+    await awardXP(XP_REWARDS.CONVERSATION_STEP)
+    setSessionXP(p => p + XP_REWARDS.CONVERSATION_STEP)
+    setTimeout(() => {
+      setDialogIdx(p => p + 1)
+      setFeedback(null)
       setUserAnswer('')
-    }, 2000)
+    }, 1800)
   }
 
-  if (loading) return <div className="flex h-screen items-center justify-center font-bold text-slate-400">Loading...</div>
-
-  if (!currentScenario) return (
-    <div className="flex flex-col h-screen items-center justify-center">
-      <div className="text-8xl mb-6">💬</div>
-      <h1 className="text-4xl font-bold mb-4 text-slate-900">No conversations yet</h1>
-      <p className="text-slate-500">Your teacher will add practice conversations soon!</p>
+  if (loading) return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+      <div style={{ width: 36, height: 36, border: '3px solid #E5E5E0', borderTopColor: '#1E3A5F', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
     </div>
   )
 
-  const dialogue = currentScenario.dialogue
-  const currentTurn = dialogue[dialogueIndex]
-
-  if (!currentTurn) return (
-    <div className="flex flex-col h-screen items-center justify-center">
-      <div className="text-8xl mb-6">🎉</div>
-      <h1 className="text-4xl font-bold mb-4 text-slate-900">Conversation Complete!</h1>
-      <button 
-        onClick={() => {
-          setDialogueIndex(0)
-          setFeedback('')
-        }} 
-        className="px-8 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-      >
-        Practice Again
-      </button>
+  // No scenarios — show empty state
+  if (scenarios.length === 0 && !current) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', textAlign: 'center', padding: 32 }}>
+      <div style={{ fontSize: 56, marginBottom: 16 }}>💬</div>
+      <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 28, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>No conversations yet</h1>
+      <p style={{ color: '#6B7280', fontSize: 15, maxWidth: 360 }}>Your teacher will create personalized conversation scenarios after your lessons. Check back soon!</p>
     </div>
   )
+
+  // Scenario selector
+  if (!current) return (
+    <div style={{ padding: '24px 20px', maxWidth: 640, margin: '0 auto' }}>
+      <XPToast amount={xpToast.amount} visible={xpToast.visible} />
+      <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 28, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>Conversations</h1>
+      <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 28 }}>Practice real-world scenarios designed by your teacher</p>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {scenarios.map((s, i) => (
+          <motion.button
+            key={s.id || i}
+            whileHover={{ scale: 1.01 }}
+            whileTap={{ scale: 0.99 }}
+            onClick={() => start(s)}
+            style={{
+              background: 'white', borderRadius: 16, padding: '20px 24px',
+              border: '1px solid #E5E5E0', cursor: 'pointer', textAlign: 'left',
+              boxShadow: '0 1px 3px rgba(26,26,46,0.04)',
+              transition: 'border-color 0.15s, box-shadow 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#1E3A5F'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(26,26,46,0.08)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E5E0'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(26,26,46,0.04)' }}
+          >
+            <div style={{ fontSize: 18, fontWeight: 700, color: '#1A1A2E', marginBottom: 4 }}>{s.title}</div>
+            <div style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>{s.context}</div>
+            <div style={{ fontSize: 12, color: '#CFBA8C', fontWeight: 600, marginTop: 8 }}>{s.dialogue?.length || 0} exchanges · ~{Math.ceil((s.dialogue?.length || 0) * 0.8)} min</div>
+          </motion.button>
+        ))}
+      </div>
+    </div>
+  )
+
+  // Active conversation
+  const dialogue = current.dialogue || []
+  const turn = dialogue[dialogIdx]
+
+  // Conversation complete
+  if (!turn) return (
+    <div style={{ padding: '24px 20px', maxWidth: 640, margin: '0 auto' }}>
+      <XPToast amount={xpToast.amount} visible={xpToast.visible} />
+      <AnimatePresence>{levelUp && <LevelUpModal {...levelUp} onDismiss={dismissLevelUp} />}</AnimatePresence>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '70vh', textAlign: 'center' }}>
+        <div style={{ fontSize: 64, marginBottom: 16 }}>🎉</div>
+        <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 30, fontWeight: 700, color: '#1A1A2E', marginBottom: 8 }}>Conversation complete!</h1>
+        {sessionXP > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #FEF3C7, #FFF7ED)', border: '2px solid #FDE68A',
+            borderRadius: 14, padding: '12px 24px', marginBottom: 24,
+          }}>
+            <span style={{ fontFamily: '"Fraunces", serif', fontSize: 20, fontWeight: 800, color: '#1A1A2E' }}>⚡ +{sessionXP} XP earned</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 12 }}>
+          <button onClick={() => { setDialogIdx(0); setFeedback(null); setSessionXP(0) }} className="hm-btn-primary" style={{ padding: '13px 24px' }}>Practice again</button>
+          <button onClick={() => setCurrent(null)} className="hm-btn-outline" style={{ padding: '13px 24px' }}>All scenarios</button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const progress = ((dialogIdx + 1) / dialogue.length) * 100
 
   return (
-    <div className="max-w-4xl mx-auto min-h-screen">
-      <div className="bg-indigo-50 p-6 rounded-2xl mb-8 border border-indigo-100">
-        <h2 className="text-2xl font-bold text-slate-900 mb-2">{currentScenario.title}</h2>
-        <p className="text-slate-600">{currentScenario.context}</p>
+    <div style={{ padding: '24px 20px', maxWidth: 640, margin: '0 auto' }}>
+      <XPToast amount={xpToast.amount} visible={xpToast.visible} />
+      <AnimatePresence>{levelUp && <LevelUpModal {...levelUp} onDismiss={dismissLevelUp} />}</AnimatePresence>
+
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <div>
+          <button onClick={() => setCurrent(null)} style={{
+            background: 'none', border: 'none', fontSize: 13, color: '#9CA3AF',
+            cursor: 'pointer', padding: 0, marginBottom: 4, display: 'block',
+          }}>← Back</button>
+          <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 22, fontWeight: 700, color: '#1A1A2E', margin: 0 }}>{current.title}</h1>
+        </div>
+        {sessionXP > 0 && (
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#1E3A5F', background: '#E8EEF4', padding: '4px 10px', borderRadius: 8 }}>⚡ {sessionXP}</span>
+        )}
       </div>
 
-      <motion.div
-        key={dialogueIndex}
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white p-8 rounded-3xl shadow-xl mb-6 border border-slate-100"
-      >
-        <div className="mb-6">
-          <p className="text-sm text-slate-400 font-bold uppercase tracking-wider mb-2">
-            👤 {currentTurn.speaker}
-          </p>
-          <h3 className="text-4xl font-bold mb-2 text-slate-900" dir="rtl">{currentTurn.text_he}</h3>
-          <p className="text-slate-500 text-lg">{currentTurn.text_en}</p>
-        </div>
+      {/* Progress */}
+      <div style={{ height: 4, borderRadius: 2, background: '#E5E5E0', marginBottom: 24, overflow: 'hidden' }}>
+        <motion.div animate={{ width: `${progress}%` }} transition={{ duration: 0.3 }} style={{ height: '100%', borderRadius: 2, background: 'linear-gradient(90deg, #1E3A5F, #2D5F8A)' }} />
+      </div>
 
-        {currentTurn.options && (
-          <div className="space-y-3">
-            <p className="text-sm text-slate-500 font-bold mb-3">Choose your response:</p>
-            {currentTurn.options.map((opt: any, i: number) => (
-              <button
-                key={i}
-                onClick={() => handleOptionSelect(opt)}
-                disabled={!!feedback}
-                className="w-full p-4 bg-slate-50 hover:bg-indigo-50 rounded-xl text-left border-2 border-transparent hover:border-indigo-300 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <p className="font-bold text-lg text-slate-900" dir="rtl">{opt.he}</p>
-                <p className="text-slate-500 text-sm">{opt.en}</p>
-              </button>
-            ))}
-          </div>
-        )}
+      {/* Context bar */}
+      <div style={{
+        background: '#F5F0E8', borderRadius: 12, padding: '12px 16px',
+        marginBottom: 20, fontSize: 13, color: '#6B7280', lineHeight: 1.5,
+        borderLeft: '3px solid #CFBA8C',
+      }}>
+        {current.context}
+      </div>
 
-        {currentTurn.type === 'free_text' && (
-          <div>
-            <p className="text-sm text-slate-500 font-bold mb-3">Type your response in Hebrew:</p>
-            <input
-              type="text"
-              value={userAnswer}
-              onChange={(e) => setUserAnswer(e.target.value)}
-              placeholder="כתוב תשובה בעברית..."
-              className="w-full p-4 border-2 border-slate-200 rounded-xl mb-4 text-lg focus:border-indigo-500 focus:outline-none"
-              dir="rtl"
-              disabled={!!feedback}
-            />
-            <button
-              onClick={handleTextSubmit}
-              disabled={!userAnswer.trim() || !!feedback}
-              className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              Submit
-            </button>
-          </div>
-        )}
-      </motion.div>
-
-      {feedback && (
+      {/* Dialogue turn */}
+      <AnimatePresence mode="wait">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="bg-green-50 border-2 border-green-300 p-6 rounded-2xl"
+          key={dialogIdx}
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -12 }}
+          style={{
+            background: 'white', borderRadius: 18, padding: '28px 24px',
+            border: '1px solid #E5E5E0', marginBottom: 16,
+            boxShadow: '0 2px 8px rgba(26,26,46,0.05)',
+          }}
         >
-          <p className="text-green-800 font-bold">✅ {feedback}</p>
+          <div style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
+            👤 {turn.speaker}
+          </div>
+          <div style={{
+            fontFamily: '"Frank Ruhl Libre", serif', fontSize: 28, fontWeight: 700,
+            color: '#1A1A2E', direction: 'rtl', lineHeight: 1.4, marginBottom: 8,
+          }}>{turn.text_he}</div>
+          <div style={{ fontSize: 15, color: '#6B7280', marginBottom: 20 }}>{turn.text_en}</div>
+
+          {/* Options */}
+          {turn.options && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Choose your response:</div>
+              {turn.options.map((opt: any, i: number) => (
+                <button
+                  key={i}
+                  onClick={() => handleOption(opt)}
+                  disabled={!!feedback}
+                  style={{
+                    background: '#FAFAF8', border: '1px solid #E5E5E0', borderRadius: 12,
+                    padding: '14px 16px', cursor: feedback ? 'default' : 'pointer',
+                    textAlign: 'left', transition: 'all 0.15s',
+                    opacity: feedback ? 0.6 : 1,
+                  }}
+                  onMouseEnter={e => { if (!feedback) { e.currentTarget.style.borderColor = '#1E3A5F'; e.currentTarget.style.background = '#E8EEF4' } }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E5E0'; e.currentTarget.style.background = '#FAFAF8' }}
+                >
+                  <div style={{ fontFamily: '"Frank Ruhl Libre", serif', fontSize: 17, fontWeight: 600, color: '#1A1A2E', direction: 'rtl' }}>{opt.he}</div>
+                  <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 2 }}>{opt.en}</div>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Free text */}
+          {turn.type === 'free_text' && (
+            <div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Type in Hebrew:</div>
+              <input
+                type="text" value={userAnswer} onChange={e => setUserAnswer(e.target.value)}
+                placeholder="...כתוב כאן"
+                dir="rtl"
+                disabled={!!feedback}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 10,
+                  border: '1px solid #E5E5E0', fontSize: 16, outline: 'none',
+                  fontFamily: '"Frank Ruhl Libre", serif', boxSizing: 'border-box',
+                  marginBottom: 12,
+                }}
+                onFocus={e => e.target.style.borderColor = '#1E3A5F'}
+                onBlur={e => e.target.style.borderColor = '#E5E5E0'}
+                onKeyDown={e => e.key === 'Enter' && handleText()}
+              />
+              <button onClick={handleText} disabled={!userAnswer.trim() || !!feedback} className="hm-btn-primary" style={{ padding: '10px 20px', fontSize: 14 }}>
+                Submit
+              </button>
+            </div>
+          )}
         </motion.div>
-      )}
+      </AnimatePresence>
+
+      {/* Feedback */}
+      <AnimatePresence>
+        {feedback && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            style={{
+              background: feedback.correct ? '#D1FAE5' : '#FFF7ED',
+              border: `1px solid ${feedback.correct ? '#A7F3D0' : '#FDBA74'}`,
+              borderRadius: 12, padding: '12px 16px',
+              fontSize: 14, fontWeight: 600,
+              color: feedback.correct ? '#065F46' : '#9A3412',
+            }}
+          >
+            {feedback.correct ? '✓' : '→'} {feedback.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

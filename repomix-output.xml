@@ -1,4 +1,4 @@
-This file is a merged representation of a subset of the codebase, containing files not matching ignore patterns, combined into a single document by Repomix.
+This file is a merged representation of a subset of the codebase, containing specifically included files and files not matching ignore patterns, combined into a single document by Repomix.
 
 <file_summary>
 This section contains a summary of this file.
@@ -32,7 +32,8 @@ The content is organized as follows:
 <notes>
 - Some files may have been excluded based on .gitignore rules and Repomix's configuration
 - Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
-- Files matching these patterns are excluded: full_code.txt, project_code.txt, *.old, *.backup, repomix-output.xml, node_modules/**, .next/**, .git/**, *.log
+- Only files matching these patterns are included: **/*.{ts,tsx,css,sql,md}
+- Files matching these patterns are excluded: full_code.txt, project_code.txt, *.old, *.backup, repomix-output.xml, node_modules/**, .next/**, .git/**, *.log, node_modules, .next, .git
 - Files matching patterns in .gitignore are excluded
 - Files matching default ignore patterns are excluded
 - Files are sorted by Git change count (files with more changes are at the bottom)
@@ -41,10 +42,7 @@ The content is organized as follows:
 </file_summary>
 
 <directory_structure>
-.eslintrc.json
-.gitignore
 app/admin/page.tsx
-app/admin/page.tsx.old
 app/api/import-lesson/route.ts
 app/api/migrate-transliterations/route.ts
 app/api/register-student/route.ts
@@ -55,163 +53,39 @@ app/context/LanguageContext.tsx
 app/dashboard/alphabet/page.tsx
 app/dashboard/conversations/page.tsx
 app/dashboard/layout.tsx
+app/dashboard/lessons/page.tsx
 app/dashboard/nikud/page.tsx
 app/dashboard/page.tsx
 app/dashboard/practice/page.tsx
-app/dashboard/progress/page.tsx
 app/dashboard/quiz/page.tsx
-app/dashboard/settings/page.tsx
-app/dashboard/vocabulary/page.tsx
 app/globals.css
 app/layout.tsx
 app/login/page.tsx
 app/page.tsx
 app/signup/page.tsx
-atabase_logic.sql
 components/AlephBetGrid.tsx
 components/AudioPlayer.tsx
-components/DashboardNav.tsx
 components/LanguageSwitcher.tsx
 components/TextToSpeech.tsx
-components/VocabCard.tsx
-components/VocabularyCard.tsx
 HEBREW_PREMIUM_FEATURES.md
 HEBREW_PREMIUM_UPGRADE.md
 hooks/useAuth.ts
+hooks/useGameification.ts
 hooks/useLocale.ts
 hooks/useStudySession.ts
+lib/achievements.ts
 lib/fsrs.ts
 lib/seed-vocab.ts
 lib/supabase-client.ts
 lib/supabase.ts
-messages/en.json
-messages/fr.json
-messages/he.json
 middleware.ts
-next.config.js
-package.json
-postcss.config.js
-repomix.config.json
-supabase_full_brain.sql
-supabase/.temp/cli-latest
-supabase/.temp/gotrue-version
-supabase/.temp/pooler-url
-supabase/.temp/postgres-version
-supabase/.temp/project-ref
-supabase/.temp/rest-version
-supabase/.temp/storage-migration
-supabase/.temp/storage-version
 supabase/migrations/001_initial_schema.sql
 tailwind.config.ts
-tsconfig.json
 types/database.ts
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path=".eslintrc.json">
-{
-  "extends": "next/core-web-vitals"
-}
-</file>
-
-<file path=".gitignore">
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.js
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# local env files
-.env*.local
-.env
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-</file>
-
-<file path="app/admin/page.tsx.old">
-"use client"
-import { useState } from 'react'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-export default function UploadLesson() {
-  const [uploading, setUploading] = useState(false)
-  const [message, setMessage] = useState('')
-
-  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    setUploading(true)
-    setMessage('⏳ מעלה...')
-
-    try {
-      const fileName = `${Date.now()}-${file.name}`
-      
-      const { error } = await supabase.storage
-        .from('lessons')
-        .upload(fileName, file)
-
-      if (error) throw error
-
-      setMessage('✅ הקובץ הועלה!')
-      setTimeout(() => alert('בדוק ב-Table Editor'), 2000)
-
-    } catch (error: any) {
-      setMessage(`❌ ${error.message}`)
-    } finally {
-      setUploading(false)
-    }
-  }
-
-  return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px', direction: 'rtl', backgroundColor: '#f5f5f5' }}>
-      <div style={{ backgroundColor: 'white', padding: '40px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)', maxWidth: '500px', width: '100%' }}>
-        <h1 style={{ fontSize: '32px', marginBottom: '30px', textAlign: 'center' }}>העלאת שיעור</h1>
-        
-        <label style={{ display: 'block', border: '2px dashed #ccc', borderRadius: '10px', padding: '40px', cursor: uploading ? 'not-allowed' : 'pointer', textAlign: 'center' }}>
-          <input type="file" accept="audio/*,video/*" onChange={handleUpload} disabled={uploading} style={{ display: 'none' }} />
-          <div style={{ fontSize: '60px' }}>📤</div>
-          <div style={{ fontSize: '20px', marginTop: '10px' }}>{uploading ? '⏳ מעלה...' : 'לחץ לבחירת קובץ'}</div>
-        </label>
-
-        {message && <div style={{ marginTop: '20px', padding: '15px', borderRadius: '8px', backgroundColor: message.includes('✅') ? '#d4edda' : '#f8d7da', color: message.includes('✅') ? '#155724' : '#721c24' }}>{message}</div>}
-      </div>
-    </div>
-  )
-}
-</file>
 
 <file path="app/api/import-lesson/route.ts">
 import { createClient } from '@supabase/supabase-js'
@@ -776,36 +650,6 @@ export default function ConversationsPage() {
 }
 </file>
 
-<file path="app/globals.css">
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-:root {
-  --font-heebo: 'Heebo', sans-serif;
-  --font-frank-ruhl-libre: 'Frank Ruhl Libre', serif;
-}
-
-html {
-  direction: rtl;
-}
-
-body {
-  @apply bg-white text-gray-900;
-  font-family: var(--font-heebo);
-}
-
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  
-  .font-hebrew {
-    font-family: var(--font-heebo);
-  }
-}
-</file>
-
 <file path="app/signup/page.tsx">
 'use client';
 
@@ -925,96 +769,6 @@ export default function SignupPage() {
     </div>
   );
 }
-</file>
-
-<file path="atabase_logic.sql">
-| name                    | definition                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| update_user_xp          | CREATE OR REPLACE FUNCTION public.update_user_xp(user_id_input uuid, xp_to_add integer)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-BEGIN
-  UPDATE profiles
-  SET xp = COALESCE(xp, 0) + xp_to_add,
-      updated_at = NOW()
-  WHERE id = user_id_input;
-  
-  IF NOT FOUND THEN
-    INSERT INTO profiles (id, xp, updated_at)
-    VALUES (user_id_input, xp_to_add, NOW());
-  END IF;
-END;
-$function$
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
-| increment_words_learned | CREATE OR REPLACE FUNCTION public.increment_words_learned(user_id_input uuid)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-BEGIN
-    UPDATE user_stats
-    SET words_learned = COALESCE(words_learned, 0) + 1
-    WHERE user_id = user_id_input;
-END;
-$function$
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
-| update_srs_item         | CREATE OR REPLACE FUNCTION public.update_srs_item(user_id_input uuid, content_id_input uuid, content_type_input character varying, rating_input integer)
- RETURNS void
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-BEGIN
-    INSERT INTO srs_cards (user_id, item_id, item_type, difficulty, stability, due_date, last_review)
-    VALUES (user_id_input, content_id_input, content_type_input, 5.0, 0.1, NOW(), NOW())
-    ON CONFLICT (user_id, item_id) 
-    DO UPDATE SET 
-        reps = srs_cards.reps + 1,
-        difficulty = CASE 
-            WHEN rating_input = 1 THEN srs_cards.difficulty + 1.0
-            WHEN rating_input = 4 THEN srs_cards.difficulty - 0.5
-            ELSE srs_cards.difficulty 
-        END,
-        due_date = CASE 
-            WHEN rating_input = 1 THEN NOW() + INTERVAL '1 minute'
-            WHEN rating_input = 2 THEN NOW() + INTERVAL '1 day'
-            WHEN rating_input = 3 THEN NOW() + INTERVAL '3 days'
-            WHEN rating_input = 4 THEN NOW() + INTERVAL '7 days'
-            ELSE NOW()
-        END,
-        last_review = NOW();
-END;
-$function$
- |
-| on_audio_upload         | CREATE OR REPLACE FUNCTION public.on_audio_upload()
- RETURNS trigger
- LANGUAGE plpgsql
- SECURITY DEFINER
-AS $function$
-begin
-  perform net.http_post(
-    url := 'https://zetczjqsavwzprrwyrpl.supabase.co/functions/v1/transcribe-lesson',
-    headers := jsonb_build_object(
-      'Content-Type', 'application/json',
-      'Authorization', 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpldGN6anFzYXZ3enBycnd5cnBsIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODU4ODU4MCwiZXhwIjoyMDg0MTY0NTgwfQ.P_n154F5TRDgly5M2WKRMtAFeoajirEBfAixdBoTKSE'
-    ),
-    body := jsonb_build_object('record', row_to_json(new))::jsonb -- שינוי ל-jsonb מפורש
-  );
-  
-  return new;
-end;
-$function$
-                                                                                                                                                                                                                                                                                                                                                                                                        || schemaname | tablename     | policyname                       | permissive | roles    | cmd    | qual                   | with_check |
-| ---------- | ------------- | -------------------------------- | ---------- | -------- | ------ | ---------------------- | ---------- |
-| public     | roots         | Public Roots                     | PERMISSIVE | {public} | SELECT | true                   | null       |
-| public     | user_progress | Users manage own progress        | PERMISSIVE | {public} | ALL    | (auth.uid() = user_id) | null       |
-| public     | user_stats    | Allow all                        | PERMISSIVE | {public} | ALL    | true                   | null       |
-| public     | user_stats    | Allow update for all             | PERMISSIVE | {public} | ALL    | true                   | null       |
-| public     | lessons       | Allow all for service role       | PERMISSIVE | {public} | ALL    | true                   | true       |
-| public     | lessons       | Allow internal service access    | PERMISSIVE | {public} | ALL    | true                   | null       |
-| public     | lessons       | Service role can do everything   | PERMISSIVE | {public} | ALL    | true                   | null       |
-| public     | lessons       | Users can view their own lessons | PERMISSIVE | {public} | SELECT | (auth.uid() = user_id) | null       |
 </file>
 
 <file path="components/AlephBetGrid.tsx">
@@ -1332,161 +1086,6 @@ export default function TextToSpeech({ text, className = '' }: TextToSpeechProps
         />
       </svg>
     </button>
-  )
-}
-</file>
-
-<file path="components/VocabCard.tsx">
-'use client'
-
-import TextToSpeech from './TextToSpeech'
-
-interface VocabCardProps {
-  word: {
-    id: string
-    hebrew: string
-    hebrew_unpointed: string
-    transliteration?: string | null
-    meaning_en?: string | null
-    part_of_speech?: string | null
-    root?: {
-      root_letters: string
-    } | null
-  }
-}
-
-export default function VocabCard({ word }: VocabCardProps) {
-  // Format root letters with hyphens (e.g., "כ-ת-ב")
-  const formatRoot = (rootLetters: string) => {
-    return rootLetters.split('').join('-')
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 p-8 relative hover:shadow-lg transition-all duration-300 group">
-      {/* Part of Speech Tag - Top Left (RTL: top right) */}
-      {word.part_of_speech && (
-        <div className="absolute top-4 right-4">
-          <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-semibold uppercase tracking-wider rounded-full">
-            {word.part_of_speech}
-          </span>
-        </div>
-      )}
-
-      {/* TextToSpeech Button - Top Left (RTL: top left) */}
-      <div className="absolute top-4 left-4">
-        <TextToSpeech text={word.hebrew || word.hebrew_unpointed} />
-      </div>
-
-      {/* Hebrew Text - HUGE and Centered, Frank Ruhl Libre */}
-      <div className="text-center mb-6 mt-12">
-        <h3 className="text-4xl font-bold text-gray-900 font-serif leading-tight">
-          {word.hebrew || word.hebrew_unpointed}
-        </h3>
-      </div>
-
-      {/* Transliteration - Centered, Gray */}
-      {word.transliteration && (
-        <div className="text-center mb-4">
-          <p className="text-gray-500 italic text-sm">
-            {word.transliteration}
-          </p>
-        </div>
-      )}
-
-      {/* English Translation - Centered, Indigo */}
-      <div className="text-center mb-6">
-        <p className="text-indigo-600 font-semibold text-lg">
-          {word.meaning_en || 'No translation'}
-        </p>
-      </div>
-
-      {/* Root Badge - Bottom */}
-      {word.root && word.root.root_letters && (
-        <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2">
-          <span className="px-4 py-2 bg-indigo-50 text-indigo-700 text-xs font-medium rounded-full border border-indigo-200">
-            Root: {formatRoot(word.root.root_letters)}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-</file>
-
-<file path="components/VocabularyCard.tsx">
-'use client'
-
-interface VocabularyCardProps {
-  word: {
-    id: string
-    hebrew: string
-    hebrew_unpointed: string
-    transliteration?: string | null
-    meaning_en?: string | null
-    audio_url?: string | null
-  }
-}
-
-export default function VocabularyCard({ word }: VocabularyCardProps) {
-  const handleAudio = () => {
-    if (word.audio_url) {
-      const audio = new Audio(word.audio_url)
-      audio.play().catch((err) => console.error('Audio playback failed:', err))
-    } else {
-      // Fallback: Use Web Speech API if no audio URL
-      if ('speechSynthesis' in window) {
-        const utterance = new SpeechSynthesisUtterance(word.hebrew)
-        utterance.lang = 'he-IL'
-        speechSynthesis.speak(utterance)
-      }
-    }
-  }
-
-  return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-6 relative hover:shadow-md transition-shadow duration-200">
-      {/* Speaker Icon Button - Top Right (RTL: left side) */}
-      <button
-        onClick={handleAudio}
-        className="absolute top-4 left-4 p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors duration-200"
-        aria-label="Play audio"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M9.383 3.076A1 1 0 0110 4v12a1 1 0 01-1.617.793L4.5 13H2a1 1 0 01-1-1V8a1 1 0 011-1h2.5l3.883-3.793a1 1 0 011.617.793zM14.657 2.929a1 1 0 011.414 0A9.972 9.972 0 0119 10a9.972 9.972 0 01-2.929 7.071 1 1 0 01-1.414-1.414A7.971 7.971 0 0017 10c0-2.21-.894-4.208-2.343-5.657a1 1 0 010-1.414zm-2.829 2.828a1 1 0 011.415 0A5.983 5.983 0 0115 10a5.984 5.984 0 01-1.757 4.243 1 1 0 01-1.415-1.415A3.984 3.984 0 0013 10a3.983 3.983 0 00-1.172-2.828 1 1 0 010-1.415z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
-
-      {/* Hebrew Text - Large and Bold */}
-      <div className="mb-4 mt-4">
-        <h3 className="text-3xl font-bold text-gray-900 font-hebrew text-start">
-          {word.hebrew || word.hebrew_unpointed}
-        </h3>
-      </div>
-
-      {/* Transliteration - Gray, Italic */}
-      {word.transliteration && (
-        <div className="mb-3">
-          <p className="text-gray-500 italic text-sm">
-            {word.transliteration}
-          </p>
-        </div>
-      )}
-
-      {/* English Translation - Indigo */}
-      <div>
-        <p className="text-indigo-600 font-medium">
-          {word.meaning_en || 'No translation'}
-        </p>
-      </div>
-    </div>
   )
 }
 </file>
@@ -4608,6 +4207,62 @@ export function useAuth() {
 }
 </file>
 
+<file path="hooks/useGameification.ts">
+export const HEBREW_LEVELS = [
+  { level: 1, name: 'אלף', xpRequired: 0 },
+  { level: 2, name: 'בית', xpRequired: 30 },
+  { level: 3, name: 'גימל', xpRequired: 70 },
+  { level: 4, name: 'דלת', xpRequired: 130 },
+  { level: 5, name: 'הא', xpRequired: 200 },
+  { level: 6, name: 'וו', xpRequired: 280 },
+  { level: 7, name: 'זין', xpRequired: 380 },
+  { level: 8, name: 'חית', xpRequired: 500 },
+  { level: 9, name: 'טית', xpRequired: 650 },
+  { level: 10, name: 'יוד', xpRequired: 800 },
+  { level: 11, name: 'כף', xpRequired: 1000 },
+  { level: 12, name: 'למד', xpRequired: 1200 },
+  { level: 13, name: 'מם', xpRequired: 1400 },
+  { level: 14, name: 'נון', xpRequired: 1600 },
+  { level: 15, name: 'סמך', xpRequired: 1900 },
+  { level: 16, name: 'עין', xpRequired: 2200 },
+  { level: 17, name: 'פא', xpRequired: 2600 },
+  { level: 18, name: 'צדי', xpRequired: 3000 },
+  { level: 19, name: 'קוף', xpRequired: 3500 },
+  { level: 20, name: 'ריש', xpRequired: 4000 },
+  { level: 21, name: 'שין', xpRequired: 4500 },
+  { level: 22, name: 'תו', xpRequired: 5000 },
+];
+
+export function getLevelFromXP(xp: number) {
+  let currentLevel = HEBREW_LEVELS[0];
+  let nextLevel = HEBREW_LEVELS[1];
+  
+  for (let i = 0; i < HEBREW_LEVELS.length; i++) {
+    if (xp >= HEBREW_LEVELS[i].xpRequired) {
+      currentLevel = HEBREW_LEVELS[i];
+      nextLevel = HEBREW_LEVELS[i + 1] || currentLevel;
+    } else {
+      break;
+    }
+  }
+  
+  const xpInLevel = xp - currentLevel.xpRequired;
+  const xpNeeded = nextLevel.xpRequired;
+  const xpForNextLevel = xpNeeded - currentLevel.xpRequired;
+  const progress = xpForNextLevel > 0 ? xpInLevel / xpForNextLevel : 1;
+  
+  return {
+    level: currentLevel.level,
+    name: currentLevel.name,
+    xpRequired: currentLevel.xpRequired,
+    nextLevel: nextLevel.level !== currentLevel.level ? nextLevel.name : null,
+    xpNeeded: nextLevel.xpRequired,
+    xpInLevel,
+    progress,
+  };
+}
+</file>
+
 <file path="hooks/useLocale.ts">
 'use client';
 
@@ -4709,6 +4364,73 @@ export function useStudySession() {
 
   return { cards, stats, loading };
 }
+</file>
+
+<file path="lib/achievements.ts">
+export interface Achievement {
+    id: string;
+    name: string;
+    nameHebrew: string;
+    description: string;
+    icon: string;
+    requirement: number;
+    type: 'xp' | 'streak' | 'lessons' | 'reviews' | 'level';
+  }
+  
+  export const ACHIEVEMENTS: Achievement[] = [
+    // XP Achievements
+    { id: 'xp_100', name: 'First Steps', nameHebrew: 'צְעָדִים רִאשׁוֹנִים', description: 'Earn 100 XP', icon: '⭐', requirement: 100, type: 'xp' },
+    { id: 'xp_500', name: 'Rising Star', nameHebrew: 'כּוֹכָב עוֹלֶה', description: 'Earn 500 XP', icon: '🌟', requirement: 500, type: 'xp' },
+    { id: 'xp_1000', name: 'Dedicated Learner', nameHebrew: 'לוֹמֵד מָסוּר', description: 'Earn 1,000 XP', icon: '💫', requirement: 1000, type: 'xp' },
+    { id: 'xp_5000', name: 'Hebrew Master', nameHebrew: 'רַב עִבְרִית', description: 'Earn 5,000 XP', icon: '🏆', requirement: 5000, type: 'xp' },
+  
+    // Streak Achievements
+    { id: 'streak_3', name: 'On Fire', nameHebrew: 'בּוֹעֵר', description: '3 day streak', icon: '🔥', requirement: 3, type: 'streak' },
+    { id: 'streak_7', name: 'Week Warrior', nameHebrew: 'לוֹחֵם שָׁבוּעַ', description: '7 day streak', icon: '💪', requirement: 7, type: 'streak' },
+    { id: 'streak_30', name: 'Monthly Master', nameHebrew: 'אָדוֹן הַחֹדֶשׁ', description: '30 day streak', icon: '👑', requirement: 30, type: 'streak' },
+    { id: 'streak_100', name: 'Unstoppable', nameHebrew: 'בִּלְתִּי נִעְצָר', description: '100 day streak', icon: '🚀', requirement: 100, type: 'streak' },
+  
+    // Lesson Achievements
+    { id: 'lessons_1', name: 'First Lesson', nameHebrew: 'שִׁעוּר רִאשׁוֹן', description: 'Complete 1 lesson', icon: '📖', requirement: 1, type: 'lessons' },
+    { id: 'lessons_5', name: 'Getting Started', nameHebrew: 'מַתְחִיל', description: 'Complete 5 lessons', icon: '📚', requirement: 5, type: 'lessons' },
+    { id: 'lessons_10', name: 'Committed Student', nameHebrew: 'תַּלְמִיד מָסוּר', description: 'Complete 10 lessons', icon: '🎓', requirement: 10, type: 'lessons' },
+    { id: 'lessons_50', name: 'Scholar', nameHebrew: 'חָכָם', description: 'Complete 50 lessons', icon: '🧠', requirement: 50, type: 'lessons' },
+  
+    // Review Achievements
+    { id: 'reviews_50', name: 'Practice Makes Perfect', nameHebrew: 'תַּרְגִּיל עוֹשֶׂה שְׁלֵמוּת', description: '50 card reviews', icon: '🃏', requirement: 50, type: 'reviews' },
+    { id: 'reviews_200', name: 'Memory Champion', nameHebrew: 'אַלּוּף זִכָּרוֹן', description: '200 card reviews', icon: '🧩', requirement: 200, type: 'reviews' },
+    { id: 'reviews_500', name: 'Review Master', nameHebrew: 'רַב חֲזָרָה', description: '500 card reviews', icon: '💎', requirement: 500, type: 'reviews' },
+  
+    // Level Achievements
+    { id: 'level_5', name: 'Rising Through Ranks', nameHebrew: 'עוֹלֶה בַּדַּרְגּוֹת', description: 'Reach Level 5', icon: '🎖️', requirement: 5, type: 'level' },
+    { id: 'level_10', name: 'Halfway There', nameHebrew: 'בַּחֲצִי הַדֶּרֶךְ', description: 'Reach Level 10', icon: '🥈', requirement: 10, type: 'level' },
+    { id: 'level_22', name: 'Ultimate Master', nameHebrew: 'רַב סוֹפִי', description: 'Reach Level 22 (תָּו)', icon: '👑', requirement: 22, type: 'level' },
+  ];
+  
+  export function checkAchievements(stats: {
+    xp: number;
+    streak: number;
+    lessonsCompleted: number;
+    totalReviews: number;
+    level: number;
+  }): Achievement[] {
+    return ACHIEVEMENTS.filter(achievement => {
+      switch (achievement.type) {
+        case 'xp':
+          return stats.xp >= achievement.requirement;
+        case 'streak':
+          return stats.streak >= achievement.requirement;
+        case 'lessons':
+          return stats.lessonsCompleted >= achievement.requirement;
+        case 'reviews':
+          return stats.totalReviews >= achievement.requirement;
+        case 'level':
+          return stats.level >= achievement.requirement;
+        default:
+          return false;
+      }
+    });
+  }
 </file>
 
 <file path="lib/fsrs.ts">
@@ -5124,465 +4846,6 @@ export const createServerClient = () => {
 }
 </file>
 
-<file path="messages/en.json">
-{
-    "nav": {
-      "dashboard": "My Path",
-      "alphabet": "Alphabet",
-      "nikud": "Nikud",
-      "vocabulary": "Vocabulary",
-      "flashcards": "Flashcards",
-      "quiz": "Quiz Mode",
-      "settings": "Settings",
-      "logout": "Log Out"
-    },
-    "vocabulary": {
-      "title": "Word Bank",
-      "addWord": "Add Word",
-      "hebrewWord": "Hebrew Word",
-      "translation": "Translation",
-      "noWords": "No words yet",
-      "addFirst": "Add your first word to start learning!",
-      "loading": "LOADING WORD BANK...",
-      "hebrewPlaceholder": "Hebrew Word (עברית)",
-      "translationPlaceholder": "Translation (house)",
-      "new": "New",
-      "listen": "Listen",
-      "addError": "Failed to add word: "
-    },
-    "flashcards": {
-      "clickToFlip": "Click to flip",
-      "loading": "Loading practice...",
-      "congrats": "Well done!",
-      "completedSession": "You completed the practice session!",
-      "backToDashboard": "Back to Dashboard",
-      "again": "Again",
-      "hard": "Hard",
-      "good": "Good",
-      "easy": "Easy"
-    },
-    "dashboard": {
-      "loading": "Loading Dashboard...",
-      "greeting": "Shalom",
-      "subtitle": "Your Hebrew learning journey is evolving.",
-      "welcome": "Welcome",
-      "student": "Student",
-      "stats": {
-        "totalXP": "Total XP",
-        "streak": "Streak",
-        "words": "Words",
-        "mastered": "Mastered",
-        "wordsLearned": "Words Learned",
-        "currentStreak": "Day Streak",
-        "cardsReviewed": "Cards Reviewed"
-      },
-      "modules": {
-        "alphabet": "Alphabet",
-        "alphabetStats": "22 letters",
-        "nikud": "Nikud",
-        "nikudStats": "10 vowels",
-        "vocabulary": "Vocabulary",
-        "items": "items",
-        "flashcards": "Flashcards",
-        "due": "due",
-        "done": "Done!",
-        "quiz": "Quiz Mode",
-        "earnXP": "Earn XP"
-      },
-      "weeklyActivity": "Weekly Activity",
-      "srsProgress": "SRS Progress"
-    },
-    "alphabet": {
-      "loading": "Loading alphabet...",
-      "backToDashboard": "Back to Dashboard",
-      "title": "The Hebrew Alphabet",
-      "subtitle": "22 letters, each with its own story",
-      "show": "Show",
-      "cursive": "Cursive",
-      "print": "Print",
-      "playSound": "Play Sound",
-      "pronounced": "Pronounced",
-      "sound": "Sound",
-      "tip": "Tip",
-      "numericalValue": "Numerical Value",
-      "variantForm": "Variant Form",
-      "withoutDagesh": "Without dagesh (dot)",
-      "clickAnyLetter": "Click any letter above to learn more about it"
-    },
-    "nikud": {
-      "loading": "Loading vowel points...",
-      "backToDashboard": "Back to Dashboard",
-      "title": "Nikud - Vowel Points",
-      "subtitle": "Master the 10 essential vowel markings",
-      "vowelPoints": "10 Vowel Points",
-      "soundCategories": "Sound Categories",
-      "aSounds": "A sounds",
-      "eSounds": "E sounds",
-      "iSounds": "I sounds",
-      "oSounds": "O sounds",
-      "uSounds": "U sounds",
-      "reduced": "Reduced",
-      "playSound": "Play Sound",
-      "vowelPointNumber": "Vowel Point",
-      "sound": "Sound",
-      "symbol": "Symbol",
-      "thisMark": "This is the",
-      "writtenPosition": "Written",
-      "with": "with",
-      "under": "under",
-      "theLetter": "the letter",
-      "category": "Category",
-      "soundFamily": "sound family",
-      "learningTip": "Learning Tip",
-      "tipText": "Hebrew vowels are not letters - they're dots and lines added to consonants. Modern Hebrew texts often skip them (unpointed text), but they're essential for learning. Master these 10 points and you'll be able to read anything!"
-    },
-    "landing": {
-      "login": "Log In",
-      "startFree": "Start Learning Free",
-      "badge": "The Smart Way to Learn Hebrew",
-      "heroTitle1": "Speak Hebrew with Confidence",
-      "heroTitle2": "in 30 Days",
-      "heroSubtitle": "An advanced system that adapts to your pace. Daily practice, word games, and smart progress tracking.",
-      "startNow": "Start Now for Free",
-      "howItWorks": "How Does It Work?",
-      "feature1Title": "Personalized Learning",
-      "feature1Desc": "Our algorithm identifies your strengths and weaknesses and builds a personal plan.",
-      "feature2Title": "Real-Time Speech Practice",
-      "feature2Desc": "Advanced speech recognition technology to help you improve pronunciation and confidence.",
-      "feature3Title": "Progress Tracking",
-      "feature3Desc": "Smart dashboard showing exactly how much you've improved and when to review material."
-    }
-  }
-</file>
-
-<file path="messages/fr.json">
-{
-    "nav": {
-      "dashboard": "Mon Parcours",
-      "alphabet": "Alphabet",
-      "nikud": "Nikud",
-      "vocabulary": "Vocabulaire",
-      "flashcards": "Cartes",
-      "quiz": "Mode Quiz",
-      "settings": "Paramètres",
-      "logout": "Déconnexion"
-    },
-    "vocabulary": {
-      "title": "Banque de mots",
-      "addWord": "Ajouter un mot",
-      "hebrewWord": "Mot en hébreu",
-      "translation": "Traduction",
-      "noWords": "Pas encore de mots",
-      "addFirst": "Ajoutez votre premier mot pour commencer à apprendre!",
-      "loading": "CHARGEMENT DE LA BANQUE DE MOTS...",
-      "hebrewPlaceholder": "Mot en hébreu (עברית)",
-      "translationPlaceholder": "Traduction (maison)",
-      "new": "Nouveau",
-      "listen": "Écouter",
-      "addError": "Échec de l'ajout du mot: "
-    },
-    "flashcards": {
-      "clickToFlip": "Cliquez pour retourner",
-      "loading": "Chargement de la pratique...",
-      "congrats": "Bravo!",
-      "completedSession": "Vous avez terminé la session de pratique!",
-      "backToDashboard": "Retour au tableau de bord",
-      "again": "Encore",
-      "hard": "Difficile",
-      "good": "Bien",
-      "easy": "Facile"
-    },
-    "dashboard": {
-      "loading": "Chargement du tableau de bord...",
-      "greeting": "Shalom",
-      "subtitle": "Votre parcours d'apprentissage de l'hébreu évolue.",
-      "welcome": "Bienvenue",
-      "student": "Étudiant",
-      "stats": {
-        "totalXP": "XP Total",
-        "streak": "Série",
-        "words": "Mots",
-        "mastered": "Maîtrisés",
-        "wordsLearned": "Mots Appris",
-        "currentStreak": "Série de Jours",
-        "cardsReviewed": "Cartes Révisées"
-      },
-      "modules": {
-        "alphabet": "Alphabet",
-        "alphabetStats": "22 lettres",
-        "nikud": "Nikud",
-        "nikudStats": "10 voyelles",
-        "vocabulary": "Vocabulaire",
-        "items": "éléments",
-        "flashcards": "Cartes",
-        "due": "à revoir",
-        "done": "Terminé!",
-        "quiz": "Mode Quiz",
-        "earnXP": "Gagner XP"
-      },
-      "weeklyActivity": "Activité Hebdomadaire",
-      "srsProgress": "Progrès SRS"
-    },
-    "alphabet": {
-      "loading": "Chargement de l'alphabet...",
-      "backToDashboard": "Retour au tableau de bord",
-      "title": "L'Alphabet Hébreu",
-      "subtitle": "22 lettres, chacune avec sa propre histoire",
-      "show": "Afficher",
-      "cursive": "Cursive",
-      "print": "Imprimé",
-      "playSound": "Jouer le son",
-      "pronounced": "Prononcé",
-      "sound": "Son",
-      "tip": "Conseil",
-      "numericalValue": "Valeur Numérique",
-      "variantForm": "Forme Variante",
-      "withoutDagesh": "Sans dagesh (point)",
-      "clickAnyLetter": "Cliquez sur n'importe quelle lettre ci-dessus pour en savoir plus"
-    },
-    "nikud": {
-      "loading": "Chargement des points de voyelles...",
-      "backToDashboard": "Retour au tableau de bord",
-      "title": "Nikud - Points Vocaliques",
-      "subtitle": "Maîtrisez les 10 marques vocaliques essentielles",
-      "vowelPoints": "10 Points Vocaliques",
-      "soundCategories": "Catégories de Sons",
-      "aSounds": "Sons A",
-      "eSounds": "Sons E",
-      "iSounds": "Sons I",
-      "oSounds": "Sons O",
-      "uSounds": "Sons U",
-      "reduced": "Réduit",
-      "playSound": "Jouer le son",
-      "vowelPointNumber": "Point Vocalique",
-      "sound": "Son",
-      "symbol": "Symbole",
-      "thisMark": "Ceci est la marque",
-      "writtenPosition": "Écrit",
-      "with": "avec",
-      "under": "sous",
-      "theLetter": "la lettre",
-      "category": "Catégorie",
-      "soundFamily": "famille de sons",
-      "learningTip": "Conseil d'Apprentissage",
-      "tipText": "Les voyelles hébraïques ne sont pas des lettres - ce sont des points et des lignes ajoutés aux consonnes. Les textes hébreux modernes les omettent souvent (texte non pointé), mais ils sont essentiels pour l'apprentissage. Maîtrisez ces 10 points et vous pourrez tout lire!"
-    },
-    "landing": {
-      "login": "Connexion",
-      "startFree": "Commencer Gratuitement",
-      "badge": "La Manière Intelligente d'Apprendre l'Hébreu",
-      "heroTitle1": "Parler Hébreu avec Confiance",
-      "heroTitle2": "en 30 Jours",
-      "heroSubtitle": "Un système avancé qui s'adapte à votre rythme. Pratique quotidienne, jeux de mots et suivi intelligent des progrès.",
-      "startNow": "Commencer Maintenant Gratuitement",
-      "howItWorks": "Comment Ça Marche?",
-      "feature1Title": "Apprentissage Personnalisé",
-      "feature1Desc": "Notre algorithme identifie vos forces et faiblesses et construit un plan personnel.",
-      "feature2Title": "Pratique de la Parole en Temps Réel",
-      "feature2Desc": "Technologie avancée de reconnaissance vocale pour améliorer votre prononciation et confiance.",
-      "feature3Title": "Suivi des Progrès",
-      "feature3Desc": "Tableau de bord intelligent montrant exactement vos progrès et quand réviser le matériel."
-    }
-  }
-</file>
-
-<file path="messages/he.json">
-{
-    "nav": {
-      "dashboard": "המסלול שלי",
-      "alphabet": "אלף-בית",
-      "nikud": "ניקוד",
-      "vocabulary": "אוצר מילים",
-      "flashcards": "כרטיסיות",
-      "quiz": "מצב חידון",
-      "settings": "הגדרות",
-      "logout": "התנתק"
-    },
-    "vocabulary": {
-      "title": "בנק מילים",
-      "addWord": "הוסף מילה",
-      "hebrewWord": "מילה בעברית",
-      "translation": "תרגום",
-      "noWords": "אין עדיין מילים",
-      "addFirst": "הוסף את המילה הראשונה שלך כדי להתחיל ללמוד!",
-      "loading": "טוען בנק מילים...",
-      "hebrewPlaceholder": "מילה בעברית (עברית)",
-      "translationPlaceholder": "תרגום (בית)",
-      "new": "חדש",
-      "listen": "הקשב",
-      "addError": "שגיאה בהוספת מילה: "
-    },
-    "flashcards": {
-      "clickToFlip": "לחץ להפיכה",
-      "loading": "טוען תרגול...",
-      "congrats": "כל הכבוד!",
-      "completedSession": "השלמת את מפגש התרגול!",
-      "backToDashboard": "חזרה לדשבורד",
-      "again": "שוב",
-      "hard": "קשה",
-      "good": "טוב",
-      "easy": "קל"
-    },
-    "dashboard": {
-      "loading": "טוען דשבורד...",
-      "greeting": "שלום",
-      "subtitle": "מסע הלימוד שלך בעברית מתפתח.",
-      "welcome": "ברוך הבא",
-      "student": "תלמיד",
-      "stats": {
-        "totalXP": "נקודות ניסיון",
-        "streak": "רצף",
-        "words": "מילים",
-        "mastered": "נשלטו",
-        "wordsLearned": "מילים שנלמדו",
-        "currentStreak": "רצף ימים",
-        "cardsReviewed": "כרטיסים נסקרו"
-      },
-      "modules": {
-        "alphabet": "אלף-בית",
-        "alphabetStats": "22 אותיות",
-        "nikud": "ניקוד",
-        "nikudStats": "10 תנועות",
-        "vocabulary": "אוצר מילים",
-        "items": "פריטים",
-        "flashcards": "כרטיסיות",
-        "due": "ממתינים",
-        "done": "סיימת!",
-        "quiz": "מצב חידון",
-        "earnXP": "צבור נקודות"
-      },
-      "weeklyActivity": "פעילות שבועית",
-      "srsProgress": "התקדמות SRS"
-    },
-    "alphabet": {
-      "loading": "טוען אלפבית...",
-      "backToDashboard": "חזרה לדשבורד",
-      "title": "האלפבית העברי",
-      "subtitle": "22 אותיות, כל אחת עם הסיפור שלה",
-      "show": "הצג",
-      "cursive": "כתב רהוט",
-      "print": "כתב דפוס",
-      "playSound": "השמע צליל",
-      "pronounced": "מבוטא",
-      "sound": "צליל",
-      "tip": "טיפ",
-      "numericalValue": "ערך מספרי",
-      "variantForm": "צורה חלופית",
-      "withoutDagesh": "ללא דגש (נקודה)",
-      "clickAnyLetter": "לחץ על אות כלשהי למעלה כדי ללמוד עליה יותר"
-    },
-    "nikud": {
-      "loading": "טוען ניקוד...",
-      "backToDashboard": "חזרה לדשבורד",
-      "title": "ניקוד - סימני תנועות",
-      "subtitle": "שלוט ב-10 סימני הניקוד החיוניים",
-      "vowelPoints": "10 סימני ניקוד",
-      "soundCategories": "קטגוריות צלילים",
-      "aSounds": "צלילי A",
-      "eSounds": "צלילי E",
-      "iSounds": "צלילי I",
-      "oSounds": "צלילי O",
-      "uSounds": "צלילי U",
-      "reduced": "מופחת",
-      "playSound": "השמע צליל",
-      "vowelPointNumber": "סימן ניקוד",
-      "sound": "צליל",
-      "symbol": "סימן",
-      "thisMark": "זה הסימן",
-      "writtenPosition": "נכתב",
-      "with": "עם",
-      "under": "מתחת ל",
-      "theLetter": "האות",
-      "category": "קטגוריה",
-      "soundFamily": "משפחת צלילים",
-      "learningTip": "טיפ ללמידה",
-      "tipText": "תנועות עבריות אינן אותיות - הן נקודות וקווים שנוספים לעיצורים. טקסטים עבריים מודרניים מדלגים עליהם לרוב (טקסט לא מנוקד), אך הם חיוניים ללמידה. שלוט ב-10 הנקודות האלה ותוכל לקרוא הכל!"
-    },
-    "landing": {
-      "login": "התחברות",
-      "startFree": "התחל ללמוד חינם",
-      "badge": "הדרך החכמה ללמוד עברית",
-      "heroTitle1": "לדבר עברית בביטחון",
-      "heroTitle2": "תוך 30 יום",
-      "heroSubtitle": "המערכת המתקדמת שמתאימה את עצמה לקצב שלך. תרגול יומיומי, משחקי מילים ומעקב התקדמות חכם.",
-      "startNow": "מתחילים עכשיו בחינם",
-      "howItWorks": "איך זה עובד?",
-      "feature1Title": "למידה מותאמת אישית",
-      "feature1Desc": "האלגוריתם שלנו מזהה את נקודות החוזק והחולשה שלך ובונה תוכנית אישית.",
-      "feature2Title": "תרגול דיבור בזמן אמת",
-      "feature2Desc": "טכנולוגיית זיהוי דיבור מתקדמת שתעזור לך לשפר את המבטא והביטחון.",
-      "feature3Title": "מעקב התקדמות",
-      "feature3Desc": "דשבורד חכם שמראה לך בדיוק כמה השתפרת ומתי כדאי לחזור על חומר."
-    }
-  }
-</file>
-
-<file path="postcss.config.js">
-module.exports = {
-  plugins: {
-    tailwindcss: {},
-    autoprefixer: {},
-  },
-}
-</file>
-
-<file path="repomix.config.json">
-{
-    "output": {
-      "filePath": "repomix-output.xml"
-    },
-    "ignore": {
-      "customPatterns": [
-        "full_code.txt",
-        "project_code.txt",
-        "*.old",
-        "*.backup",
-        "repomix-output.xml",
-        "node_modules/**",
-        ".next/**",
-        ".git/**",
-        "*.log"
-      ]
-    }
-  }
-</file>
-
-<file path="supabase_full_brain.sql">
-
-</file>
-
-<file path="supabase/.temp/cli-latest">
-v2.75.0
-</file>
-
-<file path="supabase/.temp/gotrue-version">
-v2.186.0
-</file>
-
-<file path="supabase/.temp/pooler-url">
-postgresql://postgres.zetczjqsavwzprrwyrpl@aws-1-eu-west-3.pooler.supabase.com:5432/postgres
-</file>
-
-<file path="supabase/.temp/postgres-version">
-17.6.1.063
-</file>
-
-<file path="supabase/.temp/project-ref">
-zetczjqsavwzprrwyrpl
-</file>
-
-<file path="supabase/.temp/rest-version">
-v14.1
-</file>
-
-<file path="supabase/.temp/storage-migration">
-buckets-objects-grants-postgres
-</file>
-
-<file path="supabase/.temp/storage-version">
-v1.33.0
-</file>
-
 <file path="supabase/migrations/001_initial_schema.sql">
 -- Hebrew Master: Initial Schema Migration
 -- Semitic Morphology Engine
@@ -5804,36 +5067,6 @@ const config: Config = {
   plugins: [],
 };
 export default config;
-</file>
-
-<file path="tsconfig.json">
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "allowJs": true,
-    "skipLibCheck": true,
-    "strict": true,
-    "noEmit": true,
-    "esModuleInterop": true,
-    "module": "esnext",
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "jsx": "preserve",
-    "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": ["./*"]
-    }
-  },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
-}
 </file>
 
 <file path="types/database.ts">
@@ -6104,6 +5337,282 @@ export async function POST(req: Request) {
 }
 </file>
 
+<file path="app/globals.css">
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Frank+Ruhl+Libre:wght@400;500;700&family=Heebo:wght@300;400;500;700&family=Assistant:wght@300;400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Hebrew Master Design System */
+  --hm-blue: #1E3A5F;
+  --hm-blue-light: #2D5F8A;
+  --hm-blue-pale: #E8EEF4;
+  --hm-gold: #F59E0B;
+  --hm-gold-light: #FEF3C7;
+  --hm-green: #10B981;
+  --hm-green-light: #D1FAE5;
+  --hm-red: #EF4444;
+  --hm-red-light: #FEE2E2;
+  --hm-orange: #F97316;
+  --hm-bg: #FAFAF8;
+  --hm-card: #FFFFFF;
+  --hm-border: #E5E5E0;
+  --hm-border-hover: #1E3A5F;
+  --hm-text: #1A1A2E;
+  --hm-text-secondary: #6B7280;
+  --hm-text-muted: #9CA3AF;
+  --hm-shadow-sm: 0 1px 3px rgba(26,26,46,0.06), 0 4px 12px rgba(26,26,46,0.03);
+  --hm-shadow-md: 0 2px 8px rgba(26,26,46,0.08), 0 8px 24px rgba(26,26,46,0.05);
+  --hm-shadow-lg: 0 4px 16px rgba(26,26,46,0.1), 0 12px 40px rgba(26,26,46,0.06);
+  --hm-radius: 16px;
+  --hm-radius-sm: 12px;
+  --hm-radius-xs: 8px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--hm-bg);
+  color: var(--hm-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography classes */
+.font-display {
+  font-family: 'Fraunces', Georgia, serif;
+}
+
+.font-hebrew {
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif;
+}
+
+/* Added for modern, readable Hebrew body text */
+.font-hebrew-body {
+  font-family: 'Assistant', 'Heebo', sans-serif;
+}
+
+.font-body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Card base */
+.hm-card {
+  background: var(--hm-card);
+  border-radius: var(--hm-radius);
+  border: 1px solid var(--hm-border);
+  box-shadow: var(--hm-shadow-sm);
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.hm-card:hover {
+  box-shadow: var(--hm-shadow-md);
+  border-color: rgba(30, 58, 95, 0.15);
+}
+
+.hm-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--hm-shadow-lg);
+}
+
+/* Button styles */
+.hm-btn-primary {
+  background: linear-gradient(135deg, var(--hm-blue) 0%, var(--hm-blue-light) 100%);
+  color: white;
+  border: none;
+  border-radius: var(--hm-radius-sm);
+  padding: 12px 24px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.hm-btn-primary:hover {
+  opacity: 0.92;
+}
+
+.hm-btn-primary:active {
+  transform: scale(0.98);
+}
+
+.hm-btn-outline {
+  background: white;
+  color: var(--hm-blue);
+  border: 2px solid var(--hm-blue);
+  border-radius: var(--hm-radius-sm);
+  padding: 10px 24px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.hm-btn-outline:hover {
+  background: var(--hm-blue);
+  color: white;
+}
+
+/* Stat card */
+.hm-stat {
+  padding: 20px;
+  border-radius: var(--hm-radius-sm);
+  background: var(--hm-card);
+  border: 1px solid var(--hm-border);
+}
+
+.hm-stat-value {
+  font-family: 'Fraunces', serif;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--hm-text);
+  line-height: 1;
+}
+
+.hm-stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--hm-text-muted);
+  margin-top: 6px;
+}
+
+/* Category chip colors */
+.chip-family { background: #E8D5B7; }
+.chip-commands { background: #B7D5E8; }
+.chip-encouragement { background: #D5E8B7; }
+.chip-warnings { background: #E8B7B7; }
+.chip-play { background: #D5B7E8; }
+.chip-phrases { background: #B7E8D5; }
+.chip-verbs { background: #E8D5D5; }
+.chip-adjectives { background: #D5D5E8; }
+.chip-expressions { background: #E8E8B7; }
+.chip-greetings { background: #B7E8E8; }
+.chip-shopping { background: #E8C5B7; }
+.chip-travel { background: #C5E8B7; }
+
+/* Animations */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { opacity: 0; max-height: 0; }
+  to { opacity: 1; max-height: 2000px; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes confettiBurst {
+  0% { transform: scale(0); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.8; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Progress bar */
+.hm-progress-bar {
+  height: 8px;
+  border-radius: 4px;
+  background: var(--hm-border);
+  overflow: hidden;
+}
+
+.hm-progress-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--hm-blue) 0%, var(--hm-blue-light) 100%);
+  transition: width 0.6s ease;
+}
+
+/* Mastery dots */
+.mastery-new { background: #3B82F6; }
+.mastery-seen { background: #9CA3AF; }
+.mastery-reviewing { background: #F59E0B; }
+.mastery-mastered { background: #10B981; }
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* XP toast animation */
+.xp-toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  animation: fadeInUp 0.3s ease-out, fadeIn 0.3s ease-out reverse 2.5s forwards;
+}
+
+/* Level up overlay */
+.level-up-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.6);
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .hm-stat-value {
+    font-size: 22px;
+  }
+}
+</file>
+
 <file path="app/login/page.tsx">
 'use client'
 
@@ -6224,107 +5733,6 @@ export default function LoginPage() {
       </div>
     </div>
   )
-}
-</file>
-
-<file path="components/DashboardNav.tsx">
-'use client';
-
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
-import { 
-  HomeIcon, 
-  BookOpenIcon, 
-  Cog6ToothIcon,
-  ArrowLeftOnRectangleIcon 
-} from '@heroicons/react/24/outline';
-import { useLanguage } from '@/app/context/LanguageContext';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-
-export default function DashboardNav() {
-  const pathname = usePathname();
-  const router = useRouter();
-  const { t } = useLanguage();
-  
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/login');
-    router.refresh();
-  };
-
-  return (
-    <aside className="w-64 bg-white border-r border-slate-100 flex flex-col h-full shadow-sm">
-      <div className="p-6 flex-1">
-        <h2 className="text-2xl font-black text-slate-900 mb-8 tracking-tighter">
-          HEBREW MASTER
-        </h2>
-        
-        <nav className="space-y-2">
-          <NavLink 
-            href="/dashboard" 
-            label={t('nav.dashboard')}
-            icon={HomeIcon} 
-            isActive={pathname === '/dashboard'} 
-          />
-          <NavLink 
-            href="/dashboard/vocabulary" 
-            label={t('nav.vocabulary')}
-            icon={BookOpenIcon} 
-            isActive={pathname === '/dashboard/vocabulary'} 
-          />
-          <NavLink 
-            href="/dashboard/settings" 
-            label={t('nav.settings')}
-            icon={Cog6ToothIcon} 
-            isActive={pathname === '/dashboard/settings'} 
-          />
-        </nav>
-      </div>
-
-      {/* Language Switcher */}
-      <div className="px-6 py-4">
-        <LanguageSwitcher />
-      </div>
-
-      {/* Logout Button at the bottom */}
-      <div className="p-4 border-t border-slate-50">
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-3 w-full px-4 py-3 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all font-bold"
-        >
-          <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-          <span>{t('nav.logout')}</span>
-        </button>
-      </div>
-    </aside>
-  );
-}
-
-function NavLink({ href, label, icon: Icon, isActive }: { 
-  href: string, 
-  label: string, 
-  icon: any, 
-  isActive: boolean 
-}) {
-  return (
-    <Link
-      href={href}
-      className={`flex items-center gap-3 px-4 py-3 rounded-xl font-bold transition-all ${
-        isActive 
-          ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-100' 
-          : 'text-slate-400 hover:text-slate-600 hover:bg-slate-50'
-      }`}
-    >
-      <Icon className="w-5 h-5" />
-      <span>{label}</span>
-    </Link>
-  );
 }
 </file>
 
@@ -6562,79 +5970,330 @@ export default function AlphabetPage() {
 }
 </file>
 
-<file path="app/dashboard/progress/page.tsx">
-'use client';
-import { useState, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+<file path="app/dashboard/lessons/page.tsx">
+'use client'
+import { useEffect, useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { createClient } from '@/lib/supabase-client'
 
-const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+const supabase = createClient()
 
-export default function ProgressPage() {
-  const [items, setItems] = useState<any[]>([]);
-  const userId = '00000000-0000-0000-0000-000000000000';
+export default function MyLessonsPage() {
+  const [lessons, setLessons] = useState<any[]>([])
+  const [expandedLesson, setExpandedLesson] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [showAllCards, setShowAllCards] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    async function getMemory() {
-      const { data } = await supabase
+  useEffect(() => { loadLessons() }, [])
+
+  async function loadLessons() {
+    setLoading(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data: lessonRows } = await supabase
+      .from('lessons')
+      .select('*')
+      .eq('student_user_id', user.id)
+      .not('status', 'eq', 'transcribing')
+      .order('lesson_number', { ascending: false })
+
+    if (!lessonRows || lessonRows.length === 0) {
+      // Fallback: group SRS cards by date
+      const { data: cardData } = await supabase
         .from('srs_cards')
-        .select('difficulty, due_date, vocabulary(word_he, meaning_en)')
-        .eq('user_id', userId);
-      if (data) setItems(data);
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('source', 'lesson')
+        .order('created_at', { ascending: false })
+
+      if (cardData && cardData.length > 0) {
+        const groups: Record<string, any[]> = {}
+        cardData.forEach(card => {
+          const date = new Date(card.created_at).toISOString().split('T')[0]
+          if (!groups[date]) groups[date] = []
+          groups[date].push(card)
+        })
+        const fallback = Object.entries(groups)
+          .sort(([a], [b]) => b.localeCompare(a))
+          .map(([date, cards], i, arr) => ({
+            id: `g-${date}`,
+            lesson_number: arr.length - i,
+            lesson_date: date,
+            topic_title: `Lesson ${arr.length - i}`,
+            summary: '',
+            analysis: null,
+            vocabulary: null,
+            strengths: null,
+            struggles: null,
+            talk_ratio_student: null,
+            hebrew_percentage: null,
+            cards: cards.map(c => ({
+              id: c.id, front: c.front || '', back: c.back || '',
+              transliteration: c.transliteration || '', category: c.category || '',
+              reps: c.reps || 0, stability: c.stability || 0,
+            })),
+          }))
+        setLessons(fallback)
+      }
+      setLoading(false)
+      return
     }
-    getMemory();
-  }, []);
+
+    // Enrich lessons with their cards
+    const enriched = []
+    for (const lesson of lessonRows) {
+      const { data: junction } = await supabase
+        .from('lesson_cards')
+        .select('card_id')
+        .eq('lesson_id', lesson.id)
+
+      let cards: any[] = []
+      if (junction && junction.length > 0) {
+        const { data: cardRows } = await supabase
+          .from('srs_cards')
+          .select('*')
+          .in('id', junction.map(j => j.card_id))
+
+        cards = (cardRows || []).map(c => ({
+          id: c.id, front: c.front || '', back: c.back || '',
+          transliteration: c.transliteration || '', category: c.category || '',
+          reps: c.reps || 0, stability: c.stability || 0,
+        }))
+      }
+
+      // Parse analysis JSON if strengths/struggles aren't in separate columns
+      let strengths = lesson.strengths
+      let struggles = lesson.struggles
+      let talkRatio = lesson.talk_ratio_student
+      let hebrewPct = lesson.hebrew_percentage
+      let recommendations = lesson.recommendations
+
+      if (!strengths && lesson.analysis) {
+        const a = typeof lesson.analysis === 'string' ? JSON.parse(lesson.analysis) : lesson.analysis
+        strengths = a.strengths || []
+        struggles = a.struggles || []
+        talkRatio = a.talk_ratio?.student
+        hebrewPct = a.hebrew_percentage
+        recommendations = a.recommendations || []
+      }
+
+      enriched.push({
+        ...lesson,
+        strengths,
+        struggles,
+        recommendations,
+        talk_ratio_student: talkRatio,
+        hebrew_percentage: hebrewPct,
+        cards,
+      })
+    }
+
+    setLessons(enriched)
+    if (enriched.length > 0) setExpandedLesson(enriched[0].id)
+    setLoading(false)
+  }
+
+  const catColors: Record<string, string> = {
+    family: '#E8D5B7', commands: '#B7D5E8', encouragement: '#D5E8B7',
+    warnings: '#E8B7B7', play: '#D5B7E8', phrases: '#B7E8D5',
+    verbs: '#E8D5D5', adjectives: '#D5D5E8', expressions: '#E8E8B7',
+    greetings: '#B7E8E8', shopping: '#E8C5B7', travel: '#C5E8B7',
+    'essential phrases': '#B7C5E8', 'daily life': '#E8B7C5',
+    hobbies: '#B7E8C5', nouns: '#D5C5B7', colloquial: '#C5D5B7',
+    'time expressions': '#C5B7E8',
+  }
+
+  const getMastery = (c: any) => {
+    if (c.stability >= 5) return { color: '#10B981', label: 'Mastered' }
+    if (c.reps >= 3) return { color: '#F59E0B', label: 'Reviewing' }
+    if (c.reps >= 1) return { color: '#9CA3AF', label: 'Seen' }
+    return { color: '#3B82F6', label: 'New' }
+  }
+
+  const playAudio = (text: string) => {
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'he-IL'; u.rate = 0.85
+    window.speechSynthesis.speak(u)
+  }
+
+  const fmtDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+  if (loading) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh' }}>
+      <div style={{ width: 40, height: 40, border: '3px solid var(--hm-border)', borderTopColor: 'var(--hm-blue)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <p style={{ marginTop: 14, color: 'var(--hm-text-muted)', fontSize: 13 }}>Loading your lessons...</p>
+    </div>
+  )
+
+  if (lessons.length === 0) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '80vh', padding: 32, textAlign: 'center' }}>
+      <div style={{ fontSize: 64, marginBottom: 20 }}>📚</div>
+      <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 28, fontWeight: 700, color: 'var(--hm-text)', marginBottom: 8 }}>Your lessons will appear here</h1>
+      <p style={{ color: 'var(--hm-text-secondary)', fontSize: 15, maxWidth: 400, lineHeight: 1.6 }}>
+        After each lesson with your teacher, personalized vocabulary and notes from YOUR lesson will show up here.
+      </p>
+    </div>
+  )
+
+  const totalWords = lessons.reduce((s, l) => s + l.cards.length, 0)
 
   return (
-    <div className="p-8 bg-slate-50 min-h-screen">
-      <h1 className="text-3xl font-black mb-6">Memory Status</h1>
-      <div className="grid gap-4">
-        {items.map((item, i) => (
-          <div key={i} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center">
-            <div>
-              <p className="text-2xl font-bold" dir="rtl">{item.vocabulary.word_he}</p>
-              <p className="text-slate-500">{item.vocabulary.meaning_en}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold uppercase text-slate-400">Difficulty Score</p>
-              <p className={`text-xl font-black ${item.difficulty > 5 ? 'text-red-500' : 'text-green-500'}`}>
-                {Math.round(item.difficulty * 10)}%
-              </p>
-            </div>
-          </div>
-        ))}
+    <div style={{ padding: '32px 28px', maxWidth: 840, margin: '0 auto' }}>
+      <div style={{ marginBottom: 28 }}>
+        <h1 style={{ fontFamily: '"Fraunces", serif', fontSize: 32, fontWeight: 700, color: 'var(--hm-text)', marginBottom: 4 }}>My Lessons</h1>
+        <p style={{ color: 'var(--hm-text-secondary)', fontSize: 14 }}>
+          {lessons.length} lesson{lessons.length !== 1 ? 's' : ''} · {totalWords} words learned
+        </p>
       </div>
-    </div>
-  );
-}
-</file>
 
-<file path="app/dashboard/settings/page.tsx">
-'use client';
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {lessons.map((lesson, idx) => {
+          const isOpen = expandedLesson === lesson.id
+          const showAll = showAllCards[lesson.id]
+          const visible = showAll ? lesson.cards : lesson.cards.slice(0, 8)
+          const cats = [...new Set(lesson.cards.map((c: any) => c.category))].filter(Boolean)
 
-export default function SettingsPage() {
-  return (
-    <div className="p-8">
-      <h1 className="text-3xl font-bold text-white mb-6">Settings</h1>
-      <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-8 text-center">
-        <p className="text-slate-400 text-lg">User preferences coming soon...</p>
+          return (
+            <motion.div key={lesson.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.06 }}>
+              <div className="hm-card" style={{ overflow: 'hidden' }}>
+                {/* Header */}
+                <button onClick={() => setExpandedLesson(isOpen ? null : lesson.id)} style={{
+                  display: 'flex', width: '100%', padding: '22px 24px', background: 'none',
+                  border: 'none', cursor: 'pointer', textAlign: 'left', alignItems: 'flex-start', gap: 16,
+                }}>
+                  <div style={{
+                    width: 48, height: 48, borderRadius: 13,
+                    background: 'linear-gradient(135deg, var(--hm-blue), var(--hm-blue-light))',
+                    color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: '"Fraunces", serif', fontSize: 20, fontWeight: 700, flexShrink: 0,
+                  }}>{lesson.lesson_number}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <h2 style={{ fontFamily: '"Fraunces", serif', fontSize: 18, fontWeight: 600, color: 'var(--hm-text)', margin: 0 }}>
+                      {lesson.topic_title || `Lesson ${lesson.lesson_number}`}
+                    </h2>
+                    <div style={{ display: 'flex', gap: 12, fontSize: 12, color: 'var(--hm-text-muted)', marginTop: 4, flexWrap: 'wrap' }}>
+                      <span>{fmtDate(lesson.lesson_date)}</span>
+                      <span>·</span>
+                      <span>{lesson.cards.length} words</span>
+                      {lesson.talk_ratio_student && <>
+                        <span>·</span>
+                        <span>Talk: {lesson.talk_ratio_student}%{lesson.talk_ratio_student >= 50 ? ' 🟢' : lesson.talk_ratio_student >= 35 ? ' 🟡' : ' 🔴'}</span>
+                      </>}
+                      {lesson.hebrew_percentage && <>
+                        <span>·</span><span>Hebrew: {lesson.hebrew_percentage}%</span>
+                      </>}
+                    </div>
+                    {cats.length > 0 && (
+                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 8 }}>
+                        {cats.slice(0, 5).map((cat: string) => (
+                          <span key={cat} style={{
+                            padding: '2px 9px', borderRadius: 16, background: catColors[cat] || '#E5E5E0',
+                            fontSize: 10, fontWeight: 600, color: 'var(--hm-text)', textTransform: 'capitalize',
+                          }}>{cat}</span>
+                        ))}
+                        {cats.length > 5 && <span style={{ padding: '2px 9px', borderRadius: 16, background: '#F0F0EC', fontSize: 10, fontWeight: 600, color: 'var(--hm-text-muted)' }}>+{cats.length - 5}</span>}
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ fontSize: 16, color: 'var(--hm-text-muted)', transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : '', flexShrink: 0, marginTop: 6 }}>▾</div>
+                </button>
+
+                {/* Expanded */}
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.3 }} style={{ overflow: 'hidden' }}>
+                      <div style={{ padding: '0 24px 24px', borderTop: '1px solid var(--hm-border)', paddingTop: 20 }}>
+
+                        {/* Summary */}
+                        {lesson.summary && (
+                          <div style={{ marginBottom: 20 }}>
+                            <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--hm-text-muted)', marginBottom: 6 }}>Summary</h3>
+                            <p style={{ fontSize: 13, color: 'var(--hm-text-secondary)', lineHeight: 1.7 }}>{lesson.summary}</p>
+                          </div>
+                        )}
+
+                        {/* Strengths & Struggles */}
+                        {((lesson.strengths?.length > 0) || (lesson.struggles?.length > 0)) && (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                            {lesson.strengths?.length > 0 && (
+                              <div style={{ background: '#F0FDF4', borderRadius: 12, padding: 14, border: '1px solid #BBF7D0' }}>
+                                <h4 style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>💪 Strengths</h4>
+                                {lesson.strengths.slice(0, 4).map((s: string, i: number) => (
+                                  <p key={i} style={{ fontSize: 12, color: '#374151', margin: '3px 0', lineHeight: 1.5 }}>• {s}</p>
+                                ))}
+                              </div>
+                            )}
+                            {lesson.struggles?.length > 0 && (
+                              <div style={{ background: '#FFF7ED', borderRadius: 12, padding: 14, border: '1px solid #FED7AA' }}>
+                                <h4 style={{ fontSize: 11, fontWeight: 700, color: '#EA580C', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.06em' }}>🎯 Working On</h4>
+                                {lesson.struggles.slice(0, 4).map((s: string, i: number) => (
+                                  <p key={i} style={{ fontSize: 12, color: '#374151', margin: '3px 0', lineHeight: 1.5 }}>• {s}</p>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Vocabulary Grid */}
+                        {lesson.cards.length > 0 && (
+                          <div style={{ marginBottom: 16 }}>
+                            <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--hm-text-muted)', marginBottom: 10 }}>
+                              Vocabulary ({lesson.cards.length} words)
+                            </h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(190px, 1fr))', gap: 8 }}>
+                              {visible.map((card: any) => {
+                                const m = getMastery(card)
+                                return (
+                                  <div key={card.id} onClick={() => playAudio(card.front)} style={{
+                                    background: 'var(--hm-bg)', borderRadius: 10, padding: '12px 14px',
+                                    border: '1px solid var(--hm-border)', cursor: 'pointer',
+                                    transition: 'all 0.15s', position: 'relative',
+                                  }}
+                                  onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--hm-blue)'; e.currentTarget.style.background = 'white' }}
+                                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--hm-border)'; e.currentTarget.style.background = 'var(--hm-bg)' }}
+                                  >
+                                    <div style={{ position: 'absolute', top: 8, right: 8, width: 7, height: 7, borderRadius: '50%', background: m.color }} title={m.label} />
+                                    <div style={{ fontFamily: '"Frank Ruhl Libre", serif', fontSize: 20, color: 'var(--hm-text)', direction: 'rtl', marginBottom: 3 }}>{card.front}</div>
+                                    {card.transliteration && <div style={{ fontSize: 11, color: 'var(--hm-text-muted)', fontStyle: 'italic', marginBottom: 3 }}>{card.transliteration}</div>}
+                                    <div style={{ fontSize: 12, color: 'var(--hm-text-secondary)', fontWeight: 500 }}>{card.back}</div>
+                                    <div style={{ position: 'absolute', bottom: 8, right: 10, fontSize: 13, opacity: 0.25 }}>🔊</div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                            {lesson.cards.length > 8 && (
+                              <button onClick={() => setShowAllCards(p => ({ ...p, [lesson.id]: !p[lesson.id] }))} style={{
+                                display: 'block', margin: '12px auto 0', padding: '7px 18px', background: 'none',
+                                border: '1px solid var(--hm-border)', borderRadius: 20, color: 'var(--hm-text-secondary)',
+                                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                              }}>{showAll ? 'Show less' : `Show all ${lesson.cards.length} words`}</button>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 10, paddingTop: 14, borderTop: '1px solid var(--hm-border)' }}>
+                          <a href="/dashboard/practice" className="hm-btn-primary" style={{ flex: 1, textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            🃏 Practice Cards
+                          </a>
+                          <a href="/dashboard/quiz" className="hm-btn-outline" style={{ flex: 1, textAlign: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                            🎯 Quiz
+                          </a>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
+      <div style={{ height: 60 }} />
     </div>
-  );
+  )
 }
-</file>
-
-<file path="next.config.js">
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-};
-
-module.exports = nextConfig;
 </file>
 
 <file path="app/dashboard/nikud/page.tsx">
@@ -6910,619 +6569,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </LanguageProvider>
       </body>
     </html>
-  );
-}
-</file>
-
-<file path="package.json">
-{
-  "name": "hebrew-master",
-  "version": "0.1.0",
-  "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "next lint"
-  },
-  "dependencies": {
-    "@heroicons/react": "^2.2.0",
-    "@supabase/auth-helpers-nextjs": "^0.15.0",
-    "@supabase/ssr": "^0.8.0",
-    "@supabase/supabase-js": "^2.93.2",
-    "@tanstack/react-query": "^5.17.0",
-    "canvas-confetti": "^1.9.4",
-    "framer-motion": "^11.0.0",
-    "hebrew-transliteration": "^2.9.1",
-    "lucide-react": "^0.562.0",
-    "next": "^14.2.0",
-    "openai": "^6.17.0",
-    "react": "^18.3.0",
-    "react-dom": "^18.3.0",
-    "react-hot-toast": "^2.6.0",
-    "recharts": "^3.7.0"
-  },
-  "devDependencies": {
-    "@types/canvas-confetti": "^1.9.0",
-    "@types/node": "^20.11.0",
-    "@types/react": "^18.2.0",
-    "@types/react-dom": "^18.2.0",
-    "autoprefixer": "^10.4.17",
-    "eslint": "^8.56.0",
-    "eslint-config-next": "^14.2.0",
-    "postcss": "^8.4.33",
-    "tailwindcss": "^3.4.0",
-    "tailwindcss-logical": "^3.0.0",
-    "typescript": "^5.3.0"
-  }
-}
-</file>
-
-<file path="app/dashboard/page.tsx">
-'use client';
-
-export const dynamic = 'force-dynamic';
-
-import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { createBrowserClient } from '@supabase/ssr';
-import { ResponsiveContainer, BarChart, Bar, XAxis, Tooltip, Cell } from 'recharts';
-import { useLanguage } from '@/app/context/LanguageContext';
-
-export default function Dashboard() {
-  const router = useRouter();
-  const { t } = useLanguage();
-  const [stats, setStats] = useState({ xp: 0, streak: 0, wordsLearned: 0, dueCards: 0, mastered: 0 });
-  const [chartData, setChartData] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [userName, setUserName] = useState('Student');
-
-  const [supabase] = useState(() => 
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
-  );
-
-  const loadDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        router.push('/login');
-        return;
-      }
-
-      setUserName(user.email?.split('@')[0] || t('dashboard.student'));
-      const userId = user.id;
-
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('xp')
-        .eq('id', userId)
-        .single();
-      
-      const { data: srsData } = await supabase
-        .from('srs_cards')
-        .select('*')
-        .eq('user_id', userId);
-      
-      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-      const activity = (srsData || []).reduce((acc: any, curr: any) => {
-        if (!curr.last_review) return acc;
-        const dayName = days[new Date(curr.last_review).getDay()];
-        acc[dayName] = (acc[dayName] || 0) + (curr.reps || 1);
-        return acc;
-      }, {});
-
-      setChartData(days.map(day => ({ name: day, xp: activity[day] || 0 })));
-      
-      setStats({
-        xp: profileData?.xp || 0,
-        streak: 0,
-        wordsLearned: srsData?.length || 0,
-        dueCards: (srsData || []).filter(s => new Date(s.due_date) <= new Date()).length,
-        mastered: (srsData || []).filter(s => s.stability >= 1).length
-      });
-
-    } catch (error) {
-      console.error('Dashboard Error:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { 
-    loadDashboardData(); 
-  }, []);
-
-  const modules = [
-    { title: t('dashboard.modules.alphabet'), emoji: '🔤', href: '/dashboard/alphabet', gradient: 'from-blue-500 to-blue-700', stats: t('dashboard.modules.alphabetStats') },
-    { title: t('dashboard.modules.nikud'), emoji: 'ֹא', href: '/dashboard/nikud', gradient: 'from-purple-500 to-purple-700', stats: t('dashboard.modules.nikudStats') },
-    { title: t('dashboard.modules.vocabulary'), emoji: '📚', href: '/dashboard/vocabulary', gradient: 'from-green-500 to-green-700', stats: `${stats.wordsLearned} ${t('dashboard.modules.items')}` },
-    { title: t('dashboard.modules.flashcards'), emoji: '🔄', href: '/dashboard/practice', gradient: 'from-orange-500 to-orange-700', stats: stats.dueCards > 0 ? `${stats.dueCards} ${t('dashboard.modules.due')}` : t('dashboard.modules.done') },
-    { title: t('dashboard.modules.quiz'), emoji: '⚡', href: '/dashboard/quiz', gradient: 'from-amber-500 to-amber-700', stats: t('dashboard.modules.earnXP') }
-  ];
-
-  if (loading) return (
-    <div className="h-screen flex items-center justify-center bg-slate-50">
-      <div className="flex flex-col items-center gap-4">
-        <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-        <span className="font-bold text-slate-400 tracking-widest uppercase text-xs">{t('dashboard.loading')}</span>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="max-w-7xl mx-auto p-4 md:p-6" dir="ltr">
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-slate-900 leading-tight capitalize">{t('dashboard.greeting')}, {userName}! 👋</h1>
-        <p className="text-slate-500 text-sm font-medium">{t('dashboard.subtitle')}</p>
-      </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: t('dashboard.stats.totalXP'), val: stats.xp, color: 'text-blue-600', icon: '⭐' },
-          { label: t('dashboard.stats.streak'), val: stats.streak, color: 'text-orange-500', icon: '🔥' },
-          { label: t('dashboard.stats.words'), val: stats.wordsLearned, color: 'text-emerald-500', icon: '📖' },
-          { label: t('dashboard.stats.mastered'), val: stats.mastered, color: 'text-amber-500', icon: '🏆' }
-        ].map(s => (
-          <div key={s.label} className="bg-white rounded-3xl p-4 border border-slate-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
-            <div>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{s.label}</p>
-              <p className={`text-2xl font-black ${s.color}`}>{s.val}</p>
-            </div>
-            <div className="text-2xl bg-slate-50 w-12 h-12 flex items-center justify-center rounded-2xl">{s.icon}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
-          {modules.map((m) => (
-            <Link key={m.title} href={m.href} className="group">
-              <div className={`bg-gradient-to-br ${m.gradient} rounded-[32px] p-5 text-white h-40 flex flex-col justify-between hover:scale-[1.02] active:scale-[0.98] transition-all shadow-lg group-hover:shadow-indigo-200`}>
-                <div>
-                  <div className="text-3xl mb-2">{m.emoji}</div>
-                  <h3 className="text-lg font-bold leading-tight">{m.title}</h3>
-                </div>
-                <div className="flex justify-between items-center text-[10px] font-bold">
-                  <span className="bg-white/20 px-3 py-1 rounded-full backdrop-blur-sm">{m.stats}</span>
-                  <span className="bg-white/20 p-1.5 rounded-full group-hover:translate-x-1 transition-transform">→</span>
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
-
-        <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-sm flex flex-col h-full min-h-[350px]">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">{t('dashboard.weeklyActivity')}</h3>
-            <span className="text-[10px] font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md uppercase">{t('dashboard.srsProgress')}</span>
-          </div>
-          <div className="flex-1">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
-                <XAxis 
-                  dataKey="name" 
-                  axisLine={false} 
-                  tickLine={false} 
-                  tick={{fill: '#94a3b8', fontSize: 11, fontWeight: 'bold'}} 
-                />
-                <Tooltip 
-                  cursor={{fill: '#f8fafc'}} 
-                  contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontSize: '12px', fontWeight: 'bold'}} 
-                />
-                <Bar dataKey="xp" radius={[6, 6, 6, 6]} barSize={18}>
-                  {chartData.map((e, i) => (
-                    <Cell key={i} fill={e.xp > 0 ? '#6366f1' : '#f1f5f9'} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/dashboard/quiz/page.tsx">
-'use client';
-
-import { useEffect, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
-import toast from 'react-hot-toast';
-import { createClient } from '@/lib/supabase-client';
-
-const supabase = createClient();
-
-export default function QuizPage() {
-  const [questions, setQuestions] = useState<any[]>([]);
-  const [currentQ, setCurrentQ] = useState<any>(null);
-  const [options, setOptions] = useState<any[]>([]);
-  const [score, setScore] = useState(0);
-  const [displayScore, setDisplayScore] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [gameState, setGameState] = useState<'playing' | 'correct' | 'wrong' | 'finished'>('playing');
-  const [mistakes, setMistakes] = useState<any[]>([]);
-
-  useEffect(() => { startNewGame(); }, []);
-
-  useEffect(() => {
-    if (gameState === 'finished' && score > 0) {
-      let start = 0;
-      const duration = 1500;
-      const increment = score / (duration / 20);
-      const timer = setInterval(() => {
-        start += increment;
-        if (start >= score) {
-          setDisplayScore(score);
-          clearInterval(timer);
-        } else {
-          setDisplayScore(Math.floor(start));
-        }
-      }, 20);
-      return () => clearInterval(timer);
-    }
-  }, [gameState, score]);
-
-  const playFeedback = async (type: 'success' | 'error' | 'word') => {
-    try {
-      if (type === 'word') {
-        const utterance = new SpeechSynthesisUtterance(currentQ.front);
-        utterance.lang = 'he-IL';
-        window.speechSynthesis.speak(utterance);
-      } else {
-        const url = type === 'success'
-          ? 'https://assets.mixkit.co/active_storage/sfx/2000/2000-preview.mp3'
-          : 'https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3';
-        new Audio(url).play();
-      }
-    } catch (e) {}
-  };
-
-  async function startNewGame() {
-    setLoading(true);
-    setScore(0);
-    setDisplayScore(0);
-    setMistakes([]);
-    setGameState('playing');
-    
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    
-    const { data } = await supabase
-      .from('srs_cards')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('source', 'lesson')
-      .limit(50);
-      
-    if (data && data.length > 0) {
-      const shuffled = data.sort(() => 0.5 - Math.random());
-      setQuestions(shuffled);
-      generateQuestion(shuffled[0], shuffled);
-    }
-    setLoading(false);
-  }
-
-  function generateQuestion(target: any, allWords: any[]) {
-    const distractors = allWords.filter(w => w.id !== target.id).sort(() => 0.5 - Math.random()).slice(0, 3);
-    const mixedOptions = [...distractors, target].sort(() => 0.5 - Math.random());
-    setCurrentQ(target);
-    setOptions(mixedOptions);
-    setGameState('playing');
-  }
-
-  const handleAnswer = async (selectedId: string) => {
-    if (gameState !== 'playing') return;
-    const isCorrect = selectedId === currentQ.id;
-
-    if (isCorrect) {
-      setGameState('correct');
-      setScore(prev => prev + 10);
-      playFeedback('success');
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('srs_cards').upsert({
-          user_id: user.id,
-          front: currentQ.front,
-          back: currentQ.back,
-          stability: 0.1,
-          next_review: new Date().toISOString(),
-          reps: 1
-        }, { onConflict: 'user_id, front' });
-      }
-    } else {
-      setGameState('wrong');
-      setMistakes(prev => [...prev, currentQ]);
-      playFeedback('error');
-    }
-
-    setTimeout(() => {
-      const nextIndex = questions.indexOf(currentQ) + 1;
-      if (nextIndex < 10 && nextIndex < questions.length) {
-        generateQuestion(questions[nextIndex], questions);
-      } else {
-        setGameState('finished');
-        const finalScore = score + (isCorrect ? 10 : 0);
-        if (finalScore >= 70) confetti();
-        saveProgress(finalScore);
-      }
-    }, isCorrect ? 800 : 1500);
-  };
-
-  async function saveProgress(finalScore: number) {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { error } = await supabase.rpc('update_user_xp', {
-      user_id_input: user.id,
-      xp_to_add: finalScore
-    });
-    if (!error) toast.success(`Success! +${finalScore} XP added`, { icon: '⚡' });
-  }
-
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">Loading Quiz...</div>;
-
-  if (gameState === 'finished') return (
-    <div className="max-w-2xl mx-auto p-8 flex flex-col items-center min-h-screen bg-slate-50 pt-16" dir="ltr">
-      <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-8xl mb-4">🏆</motion.div>
-      <h1 className="text-4xl font-black text-slate-900 mb-2 text-center">Quiz Results</h1>
-      <div className="w-full bg-white rounded-[40px] shadow-2xl border border-slate-100 p-10 text-center mb-8">
-        <p className="text-slate-400 font-bold uppercase tracking-widest text-sm mb-2 text-center">XP Earned</p>
-        <div className="text-7xl font-black text-indigo-600 mb-6 text-center">{displayScore}</div>
-        <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden mb-4">
-          <motion.div initial={{ width: 0 }} animate={{ width: `${(score / 100) * 100}%` }} className="h-full bg-indigo-500" /> 
-        </div>
-      </div>
-      {mistakes.length > 0 && (
-        <div className="w-full bg-white rounded-3xl shadow-lg overflow-hidden border border-slate-100 mb-8 text-left">
-          <div className="bg-slate-900 p-4 text-white font-bold text-center">Words to Review</div>
-          <table className="w-full border-collapse">
-            <tbody>
-              {mistakes.map((word, i) => (
-                <tr key={i} className="border-b border-slate-50 hover:bg-slate-50">
-                  <td className="p-4 text-2xl font-bold text-right text-slate-800" dir="rtl">{word.front}</td>
-                  <td className="p-4 text-slate-600 font-medium">{word.back}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-      <button onClick={startNewGame} className="w-full py-5 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all">Start New Quiz</button>
-    </div>
-  );
-
-  return (
-    <div className="max-w-4xl mx-auto p-6 flex flex-col items-center justify-center min-h-[90vh]" dir="ltr">
-      <div className="w-full max-w-2xl">
-        <div className="flex justify-between items-center mb-8 font-bold">
-          <span className="bg-white px-4 py-2 rounded-xl shadow-sm border border-slate-100 text-slate-900">
-            {questions.indexOf(currentQ) + 1} / 10
-          </span>
-          <span className="bg-indigo-600 px-6 py-2 rounded-xl text-white shadow-lg">{score} XP</span>
-        </div>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentQ.id}
-            initial={{ y: 10, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className={`w-full bg-white rounded-[40px] shadow-xl p-12 text-center mb-10 border-4 transition-all duration-300 ${ 
-              gameState === 'correct' ? 'border-green-500 bg-green-50/30' :
-              gameState === 'wrong' ? 'border-red-500 bg-red-50/30' : 'border-slate-50'
-            }`}
-          >
-            <h1 className="text-8xl font-black text-slate-900 mb-6 leading-tight text-center" dir="rtl">{currentQ.front}</h1>
-            <button onClick={() => playFeedback('word')} className="text-indigo-600 font-bold flex items-center space-x-2 mx-auto px-6 py-3 rounded-full hover:bg-indigo-50 transition-colors">
-              <span>🔊</span><span>Listen</span>
-            </button>
-          </motion.div>
-        </AnimatePresence>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {options.map((opt) => (
-            <button
-              key={opt.id}
-              onClick={() => handleAnswer(opt.id)}
-              disabled={gameState !== 'playing'}
-              className={`p-6 rounded-3xl text-xl font-bold transition-all border-2 text-left px-8 shadow-sm
-                ${gameState === 'playing' ? 'bg-white border-slate-100 hover:border-indigo-300 text-slate-700' : ''}
-                ${opt.id === currentQ.id && (gameState === 'correct' || gameState === 'wrong') ? 'bg-green-500 text-white border-green-600' : ''}
-                ${gameState === 'wrong' && opt.id !== currentQ.id ? 'bg-red-50 border-red-200 text-red-400 opacity-50' : ''}    
-              `}
-            >
-              {opt.back}
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="app/dashboard/vocabulary/page.tsx">
-'use client';
-
-import { useState, useEffect } from 'react';
-import { createBrowserClient } from '@supabase/ssr';
-import { motion, AnimatePresence } from 'framer-motion';
-import confetti from 'canvas-confetti';
-import { transliterate } from 'hebrew-transliteration';
-import { useLanguage } from '@/app/context/LanguageContext';
-
-export default function VocabularyPage() {
-  const { t } = useLanguage();
-  const [words, setWords] = useState<any[]>([]);
-  const [newWord, setNewWord] = useState('');
-  const [translation, setTranslation] = useState('');
-  const [loading, setLoading] = useState(true);
-
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
-
-  const playWordSound = async (hebrewText: string) => {
-    try {
-      const response = await fetch('/api/tts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: hebrewText }),
-      });
-      const blob = await response.blob();
-      const audio = new Audio(URL.createObjectURL(blob));
-      audio.play();
-    } catch (error) {
-      console.error('Sound error:', error);
-    }
-  };
-
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-
-      const { data, error } = await supabase
-        .from('srs_cards')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setWords(data || []);
-    } catch (err) {
-      console.error('Error fetching:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const addWord = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newWord || !translation) return;
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    const autoTranslit = transliterate(newWord);
-
-    const { error } = await supabase.from('srs_cards').insert([
-      {
-        user_id: user.id,
-        front: newWord,
-        back: translation,
-        transliteration: autoTranslit,
-        next_review: new Date().toISOString(),
-        stability: 0,
-        reps: 0
-      }
-    ]);
-
-    if (error) {
-      console.error('Insert Error:', error.message);
-      alert(t('vocabulary.addError') + error.message);
-    } else {
-      setNewWord('');
-      setTranslation('');
-      fetchData();
-      confetti({ particleCount: 100, spread: 70, origin: { y: 0.8 } });
-    }
-  };
-
-  const deleteWord = async (id: string) => {
-    const { error } = await supabase.from('srs_cards').delete().eq('id', id);
-    if (!error) fetchData();
-  };
-
-  useEffect(() => { fetchData(); }, []);
-
-  if (loading) return <div className="h-screen flex items-center justify-center font-bold text-slate-400">{t('vocabulary.loading')}</div>;
-
-  return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8" dir="ltr">
-      <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-black text-slate-900 mb-8 tracking-tighter">{t('vocabulary.title')}</h1>
-
-        <form onSubmit={addWord} className="bg-white p-4 rounded-[32px] shadow-sm border border-slate-100 mb-12 flex flex-col md:flex-row gap-3">
-          <input
-            type="text"
-            placeholder={t('vocabulary.hebrewPlaceholder')}
-            className="flex-1 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-            value={newWord}
-            onChange={(e) => setNewWord(e.target.value)}
-            dir="rtl"
-          />
-          <input
-            type="text"
-            placeholder={t('vocabulary.translationPlaceholder')}
-            className="flex-1 p-4 bg-slate-50 rounded-2xl outline-none font-bold text-slate-900 focus:ring-2 focus:ring-indigo-500 transition-all"
-            value={translation}
-            onChange={(e) => setTranslation(e.target.value)}
-          />
-          <button className="bg-indigo-600 text-white px-8 py-4 rounded-2xl font-black hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
-            {t('vocabulary.addWord')}
-          </button>
-        </form>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <AnimatePresence>
-            {words.map((word) => (
-              <motion.div
-                key={word.id}
-                layout
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.9 }}
-                className="bg-white rounded-[32px] p-6 shadow-sm border border-slate-100 flex flex-col justify-between h-56 group hover:border-indigo-200 transition-all"
-              >
-                <div className="flex justify-between items-start">
-                  <div className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">
-                    {t('vocabulary.new')}
-                  </div>
-                  <button 
-                    onClick={() => deleteWord(word.id)}
-                    className="text-slate-300 hover:text-red-500 transition-colors font-bold text-sm"
-                  >
-                    ✕
-                  </button>
-                </div>
-                
-                <div className="text-center flex-1 flex flex-col justify-center">
-                  <h2 className="text-4xl font-black text-slate-900 mb-1" dir="rtl">{word.front}</h2>
-                  {word.transliteration && (
-                    <p className="text-sm text-indigo-600 font-semibold italic mb-2">{word.transliteration}</p>
-                  )}
-                  <p className="text-slate-500 font-bold">{word.back}</p>
-                </div>
-
-                <div className="flex justify-center mt-3">
-                  <button
-                    onClick={() => playWordSound(word.front)}
-                    className="bg-indigo-100 hover:bg-indigo-200 text-indigo-700 px-4 py-2 rounded-full font-bold text-sm transition-all flex items-center gap-2"
-                  >
-                    <span>🔊</span>
-                    <span>{t('vocabulary.listen')}</span>
-                  </button>
-                </div>
-
-                <div className="w-full bg-slate-50 h-1.5 rounded-full overflow-hidden mt-4">
-                  <div className="bg-indigo-500 h-full w-2" />
-                </div>
-              </motion.div>
-            ))}
-          </AnimatePresence>
-        </div>
-      </div>
-    </div>
   );
 }
 </file>
@@ -8052,169 +7098,341 @@ export default function AdminPage() {
 }
 </file>
 
-<file path="app/dashboard/layout.tsx">
+<file path="app/dashboard/quiz/page.tsx">
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Toaster } from 'react-hot-toast';
-import { createBrowserClient } from '@supabase/ssr';
-import {
-  HomeIcon,
-  LanguageIcon,
-  BookOpenIcon,
-  QueueListIcon,
-  SparklesIcon,
-  AcademicCapIcon,
-  Cog6ToothIcon,
-  ArrowLeftOnRectangleIcon,
-  Bars3Icon,
-  XMarkIcon,
-  UserCircleIcon,
-  ChatBubbleLeftRightIcon
-} from '@heroicons/react/24/outline';
-import clsx from 'clsx';
 import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { useLanguage } from '@/app/context/LanguageContext';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { XP_REWARDS } from '@/lib/xp-system';
 
-export const dynamic = 'force-dynamic';
+interface Question {
+  id: string;
+  hebrew: string;
+  transliteration?: string;
+  correctAnswer: string;
+  options: string[];
+}
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const router = useRouter();
+export default function QuizPage() {
   const { t } = useLanguage();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [score, setScore] = useState(0);
+  const [sessionXP, setSessionXP] = useState(0);
+  const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
+  const [showResult, setShowResult] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [quizComplete, setQuizComplete] = useState(false);
 
-  const [supabase] = useState(() =>
-    createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   );
 
   useEffect(() => {
-    const getUser = async () => {
+    fetchQuestions();
+  }, []);
+
+  const fetchQuestions = async () => {
+    try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (user) setUserEmail(user.email ?? null);
-    };
-    getUser();
-  }, [supabase]);
+      if (!user) return;
 
-  const links = [
-    { name: t('nav.dashboard'), href: '/dashboard', icon: HomeIcon },
-    { name: t('nav.alphabet'), href: '/dashboard/alphabet', icon: LanguageIcon },
-    { name: t('nav.nikud'), href: '/dashboard/nikud', icon: AcademicCapIcon },
-    { name: t('nav.vocabulary'), href: '/dashboard/vocabulary', icon: BookOpenIcon },
-    { name: t('nav.flashcards'), href: '/dashboard/practice', icon: QueueListIcon },
-    { name: '💬 Conversations', href: '/dashboard/conversations', icon: ChatBubbleLeftRightIcon, special: true },
-    { name: t('nav.quiz'), href: '/dashboard/quiz', icon: SparklesIcon, special: true },
-  ];
+      const { data: cards } = await supabase
+        .from('srs_cards')
+        .select('*')
+        .eq('user_id', user.id)
+        .limit(10);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    router.push('/');
-    router.refresh();
+      if (!cards || cards.length < 4) {
+        setLoading(false);
+        return;
+      }
+
+      // Generate quiz questions
+      const quizQuestions: Question[] = cards.slice(0, 10).map((card, index) => {
+        // Get 3 random wrong answers
+        const wrongAnswers = cards
+          .filter(c => c.id !== card.id)
+          .sort(() => Math.random() - 0.5)
+          .slice(0, 3)
+          .map(c => c.back);
+
+        // Combine and shuffle
+        const options = [card.back, ...wrongAnswers].sort(() => Math.random() - 0.5);
+
+        return {
+          id: card.id,
+          hebrew: card.front,
+          transliteration: card.transliteration,
+          correctAnswer: card.back,
+          options,
+        };
+      });
+
+      setQuestions(quizQuestions);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <div className="flex h-screen bg-slate-50" dir="ltr">
-      <Toaster position="top-center" />
+  const playSound = (type: 'correct' | 'wrong') => {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
 
-      {/* Mobile Menu Button */}
-      <div className="md:hidden fixed top-4 right-4 z-50">
-        <button
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className="p-2 bg-slate-900 text-white rounded-lg shadow-lg"
-        >
-          {isMobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
-        </button>
-      </div>
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
 
-      {/* Sidebar */}
-      <aside className={clsx(
-        "bg-slate-900 text-white flex flex-col shadow-xl transition-all duration-300 z-40",
-        {
-          "fixed inset-0 w-full": isMobileMenuOpen,
-          "hidden md:flex md:w-64 md:static": !isMobileMenuOpen
+    if (type === 'correct') {
+      // Success sound - cheerful beep
+      oscillator.frequency.value = 800;
+      oscillator.type = 'sine';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+      
+      // Second beep
+      setTimeout(() => {
+        const osc2 = audioContext.createOscillator();
+        const gain2 = audioContext.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioContext.destination);
+        osc2.frequency.value = 1000;
+        osc2.type = 'sine';
+        gain2.gain.setValueAtTime(0.3, audioContext.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+        osc2.start(audioContext.currentTime);
+        osc2.stop(audioContext.currentTime + 0.2);
+      }, 100);
+    } else {
+      // Error sound - lower tone
+      oscillator.frequency.value = 200;
+      oscillator.type = 'sawtooth';
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.4);
+    }
+  };
+
+  const awardXP = async (xpAmount: number) => {
+    try {
+      const response = await fetch('/api/award-xp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ xpAmount }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSessionXP(prev => prev + xpAmount);
+        
+        if (data.leveledUp) {
+          confetti({ particleCount: 300, spread: 120 });
+          setTimeout(() => {
+            alert(`🎉 LEVEL UP! You reached ${data.newLevel}!`);
+          }, 500);
         }
-      )}>
-        <div className="p-8">
-          <h1 className="text-2xl font-black tracking-tighter bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
-            HEBREW MASTER
-          </h1>
-        </div>
+      }
+    } catch (error) {
+      console.error('XP award error:', error);
+    }
+  };
 
-        <nav className="flex-1 px-4 space-y-2 overflow-y-auto">
-          {links.map((link) => {
-            const LinkIcon = link.icon;
-            const isActive = pathname === link.href;
+  const handleAnswer = async (answer: string) => {
+    if (showResult) return;
 
-            return (
-              <Link
-                key={link.name}
-                href={link.href}
-                onClick={() => setIsMobileMenuOpen(false)}
-                className={clsx(
-                  "flex items-center space-x-3 p-3 rounded-2xl transition-all font-medium",
-                  {
-                    "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 font-bold": isActive,
-                    "hover:bg-white/10 text-slate-300": !isActive,
-                    "bg-indigo-600/10 text-indigo-400 border border-indigo-500/20": link.special && !isActive
-                  }
-                )}
-              >
-                <LinkIcon className="w-5 h-5" />
-                <span>{link.name}</span>
-              </Link>
-            );
-          })}
-        </nav>
+    const correct = answer === questions[currentIndex].correctAnswer;
+    setSelectedAnswer(answer);
+    setIsCorrect(correct);
+    setShowResult(true);
 
-        {/* User Panel + Language Switcher */}
-        <div className="p-6 border-t border-white/5 space-y-4">
-          {userEmail && (
-            <div className="flex items-center space-x-3 p-2 bg-white/5 rounded-2xl border border-white/5">
-              <UserCircleIcon className="w-10 h-10 text-indigo-400 flex-none" />
-              <div className="overflow-hidden">
-                <p className="text-[10px] uppercase tracking-widest text-slate-500 font-bold">{t('dashboard.student')}</p>
-                <p className="text-sm text-slate-200 truncate font-medium">{userEmail}</p>
+    if (correct) {
+      setScore(score + 1);
+      await awardXP(XP_REWARDS.QUIZ_CORRECT);
+      playSound('correct');
+      confetti({ particleCount: 50, spread: 60 });
+    } else {
+      await awardXP(XP_REWARDS.QUIZ_WRONG);
+      playSound('wrong');
+    }
+  };
+
+  const handleNext = () => {
+    if (currentIndex < questions.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setSelectedAnswer(null);
+      setShowResult(false);
+      setIsCorrect(false);
+    } else {
+      setQuizComplete(true);
+      confetti({ particleCount: 200, spread: 90 });
+    }
+  };
+
+  const restartQuiz = () => {
+    setCurrentIndex(0);
+    setScore(0);
+    setSessionXP(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setQuizComplete(false);
+    fetchQuestions();
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-2xl font-bold text-slate-400">Loading quiz...</div>
+      </div>
+    );
+  }
+
+  if (questions.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="text-4xl mb-4">📚</div>
+        <div className="text-2xl font-bold text-slate-700">Not enough cards!</div>
+        <div className="text-slate-500">Complete lessons to unlock quizzes</div>
+      </div>
+    );
+  }
+
+  if (quizComplete) {
+    const percentage = Math.round((score / questions.length) * 100);
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-4">
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="bg-white rounded-3xl p-12 shadow-2xl max-w-2xl w-full text-center"
+        >
+          <div className="text-8xl mb-6">🎉</div>
+          <h1 className="text-5xl font-black text-slate-900 mb-4">Quiz Complete!</h1>
+          <div className="text-7xl font-black text-indigo-600 mb-2">
+            {score}/{questions.length}
+          </div>
+          <div className="text-2xl text-slate-600 mb-8">{percentage}% Correct</div>
+          
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6 mb-8">
+            <div className="text-3xl font-black text-slate-900">
+              ⭐ +{sessionXP} XP Earned!
+            </div>
+          </div>
+
+          <button
+            onClick={restartQuiz}
+            className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-12 py-4 rounded-2xl font-black text-xl shadow-lg transition-all"
+          >
+            Take Another Quiz
+          </button>
+        </motion.div>
+      </div>
+    );
+  }
+
+  const currentQuestion = questions[currentIndex];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header */}
+        <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900">🎯 Quiz Mode</h1>
+              <p className="text-slate-600 mt-1">
+                Question {currentIndex + 1} of {questions.length}
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-4xl font-black text-indigo-600">{score}</div>
+              <div className="text-sm text-slate-500">Correct</div>
+            </div>
+          </div>
+          
+          {sessionXP > 0 && (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-xl p-4">
+              <div className="text-lg font-black text-slate-900">
+                ⭐ Session XP: +{sessionXP}
               </div>
             </div>
           )}
+        </div>
 
-          {/* Language Switcher */}
-          <div className="px-2">
-            <LanguageSwitcher />
+        {/* Question */}
+        <div className="bg-white rounded-3xl p-12 shadow-2xl mb-8 text-center">
+          <div className="text-7xl font-black text-slate-900 mb-4" dir="rtl">
+            {currentQuestion.hebrew}
           </div>
+          {currentQuestion.transliteration && (
+            <div className="text-2xl text-indigo-600 italic font-semibold">
+              {currentQuestion.transliteration}
+            </div>
+          )}
+        </div>
 
-          <div className="space-y-1">
-            <Link href="/dashboard/settings" className="flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-white transition-colors">
-              <Cog6ToothIcon className="w-5 h-5" />
-              <span>{t('nav.settings')}</span>
-            </Link>
+        {/* Options */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {currentQuestion.options.map((option, index) => {
+            const isSelected = selectedAnswer === option;
+            const isCorrectAnswer = option === currentQuestion.correctAnswer;
+            
+            let bgColor = 'bg-white hover:bg-indigo-50 border-slate-200';
+            if (showResult) {
+              if (isCorrectAnswer) {
+                bgColor = 'bg-green-100 border-green-400';
+              } else if (isSelected && !isCorrect) {
+                bgColor = 'bg-red-100 border-red-400';
+              }
+            } else if (isSelected) {
+              bgColor = 'bg-indigo-100 border-indigo-400';
+            }
 
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center space-x-3 p-3 rounded-xl text-slate-400 hover:text-red-400 hover:bg-red-400/10 transition-all"
+            return (
+              <button
+                key={index}
+                onClick={() => handleAnswer(option)}
+                disabled={showResult}
+                className={`${bgColor} border-2 rounded-2xl p-6 text-xl font-bold text-slate-900 transition-all shadow-lg disabled:cursor-not-allowed`}
+              >
+                {option}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Result & Next Button */}
+        <AnimatePresence>
+          {showResult && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="text-center"
             >
-              <ArrowLeftOnRectangleIcon className="w-5 h-5" />
-              <span>{t('nav.logout')}</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
-      <main className="flex-1 overflow-y-auto">
-        <div className="p-6 pt-20 md:p-12">
-          {children}
-        </div>
-      </main>
+              <div className={`text-3xl font-black mb-6 ${isCorrect ? 'text-green-600' : 'text-red-600'}`}>
+                {isCorrect ? `✅ Correct! +${XP_REWARDS.QUIZ_CORRECT} XP` : `❌ Wrong! +${XP_REWARDS.QUIZ_WRONG} XP`}
+              </div>
+              <button
+                onClick={handleNext}
+                className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white px-12 py-4 rounded-2xl font-black text-xl shadow-lg transition-all"
+              >
+                {currentIndex < questions.length - 1 ? 'Next Question →' : 'Finish Quiz 🎉'}
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   );
 }
@@ -8307,191 +7525,6 @@ export default function Home() {
 }
 </file>
 
-<file path="app/dashboard/practice/page.tsx">
-'use client'
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { createClient } from '@/lib/supabase-client'
-
-const supabase = createClient()
-
-export default function PracticePage() {
-  const [words, setWords] = useState<any[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [isFlipped, setIsFlipped] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [sessionComplete, setSessionComplete] = useState(false)
-
-  useEffect(() => {
-    loadSession()
-  }, [])
-
-  async function loadSession() {
-    setLoading(true)
-    
-    // Get current user
-    const { data: { user } } = await supabase.auth.getUser()
-    console.log('🔑 Current user ID:', user?.id)
-    console.log('📧 Current user email:', user?.email)
-    
-    if (!user) {
-      console.log('❌ No user logged in')
-      setLoading(false)
-      return
-    }
-    
-    // Query srs_cards for THIS user's personalized vocabulary
-    console.log('🔍 Querying srs_cards for user_id:', user.id)
-    const { data, error } = await supabase
-      .from('srs_cards')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('source', 'lesson')
-      .order('created_at', { ascending: false })
-      .limit(25)
-      
-    console.log('📊 Query result:', data)
-    console.log('❌ Query error:', error)
-
-    if (data && data.length > 0) {
-      setWords(data)
-      console.log('✅ Loaded', data.length, 'personalized cards')
-    } else {
-      console.log('⚠️ No cards found for this user')
-    }
-    setLoading(false)
-  }
-
-  const handleRating = async (rating: string) => {
-    // Navigate to next card
-    if (currentIndex < words.length - 1) {
-      setIsFlipped(false)
-      setCurrentIndex(prev => prev + 1)
-    } else {
-      setSessionComplete(true)
-    }
-  }
-
-  const playAudio = (text: string) => {
-    const utterance = new SpeechSynthesisUtterance(text)
-    utterance.lang = 'he-IL'
-    window.speechSynthesis.speak(utterance)
-  }
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-white font-bold text-slate-400">
-        Loading...
-      </div>
-    )
-  }
-
-  if (sessionComplete) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
-        <div className="text-8xl mb-6">🎉</div>
-        <h1 className="text-4xl font-black text-slate-900 mb-2">Session Complete!</h1>
-        <p className="text-slate-500 mb-8">Great job practicing!</p>
-        <button
-          onClick={() => window.location.href = '/dashboard'}
-          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-        >
-          Back to Dashboard
-        </button>
-      </div>
-    )
-  }
-
-  if (words.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-white text-center p-6">
-        <div className="text-8xl mb-6">📚</div>
-        <h1 className="text-4xl font-black text-slate-900 mb-2">No cards yet!</h1>
-        <p className="text-slate-500 mb-8">Your teacher needs to import a lesson first.</p>
-        <button
-          onClick={() => window.location.href = '/dashboard'}
-          className="px-10 py-4 bg-indigo-600 text-white rounded-2xl font-bold shadow-lg hover:bg-indigo-700 transition-all"
-        >
-          Back to Dashboard
-        </button>
-      </div>
-    )
-  }
-
-  const currentWord = words[currentIndex]
-
-  return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6" dir="ltr">
-      {/* Progress bar */}
-      <div className="w-full max-w-md mb-8 h-2 bg-slate-200 rounded-full overflow-hidden">
-        <div 
-          className="h-full bg-indigo-500 transition-all duration-500"
-          style={{ width: `${((currentIndex + 1) / words.length) * 100}%` }}
-        />
-      </div>
-
-      {/* Flashcard */}
-      <div className="w-full max-w-md aspect-[4/5] relative perspective-1000">
-        <AnimatePresence mode="wait">
-          {!isFlipped ? (
-            <motion.div
-              key="front"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col items-center justify-center cursor-pointer"
-              onClick={() => setIsFlipped(true)}
-            >
-              <p className="text-sm text-slate-400 mb-4">{currentIndex + 1} / {words.length}</p>
-              <h2 className="text-6xl font-black text-slate-900 mb-4" dir="rtl">{currentWord.front}</h2>
-              <p className="text-indigo-600 italic">{currentWord.transliteration}</p>
-              <p className="text-slate-400 mt-8 text-sm">Tap to reveal</p>
-              <button
-                onClick={(e) => { e.stopPropagation(); playAudio(currentWord.front) }}
-                className="mt-4 text-2xl"
-              >
-                🔊
-              </button>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="back"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute inset-0 bg-white border border-slate-100 shadow-xl rounded-[40px] p-8 flex flex-col"
-            >
-              <div className="flex-1 flex flex-col items-center justify-center">
-                <h3 className="text-4xl font-bold text-slate-900 mb-2">{currentWord.back}</h3>
-                <p className="text-slate-500 mb-4">{currentWord.category}</p>
-                <p className="text-2xl text-slate-700" dir="rtl">{currentWord.front}</p>
-              </div>
-              
-              {/* Rating buttons */}
-              <div className="grid grid-cols-4 gap-2">
-                {['Again', 'Hard', 'Good', 'Easy'].map(rating => (
-                  <button
-                    key={rating}
-                    onClick={() => handleRating(rating)}
-                    className={`py-3 rounded-xl font-bold text-sm transition-all ${
-                      rating === 'Again' ? 'bg-red-100 text-red-600 hover:bg-red-200' :
-                      rating === 'Hard' ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' :
-                      rating === 'Good' ? 'bg-green-100 text-green-600 hover:bg-green-200' :
-                      'bg-blue-100 text-blue-600 hover:bg-blue-200'
-                    }`}
-                  >
-                    {rating}
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </div>
-  )
-}
-</file>
-
 <file path="middleware.ts">
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
@@ -8537,6 +7570,894 @@ export const config = {
    * זה מבטיח שדף הבית (/) יישאר נקי מהתערבות של ה-Middleware.
    */
   matcher: ['/dashboard/:path*', '/login'],
+}
+</file>
+
+<file path="app/dashboard/layout.tsx">
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { Toaster } from 'react-hot-toast';
+import { createBrowserClient } from '@supabase/ssr';
+import {
+  HomeIcon,
+  BookOpenIcon,
+  SparklesIcon,
+  AcademicCapIcon,
+  ArrowLeftOnRectangleIcon,
+  Bars3Icon,
+  XMarkIcon,
+  ChatBubbleLeftRightIcon,
+} from '@heroicons/react/24/outline';
+import { useState, useEffect } from 'react';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { getLevelFromXP } from '@/hooks/useGameification';
+
+export const dynamic = 'force-dynamic';
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { t } = useLanguage();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [userXP, setUserXP] = useState(0);
+  const [userStreak, setUserStreak] = useState(0);
+
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
+
+  useEffect(() => {
+    const getUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setUserEmail(user.email ?? null);
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('xp, streak')
+          .eq('id', user.id)
+          .single();
+        if (profile) {
+          setUserXP(profile.xp || 0);
+          setUserStreak(profile.streak || 0);
+        }
+      }
+    };
+    getUser();
+  }, [supabase]);
+
+  const levelInfo = getLevelFromXP(userXP);
+
+  const links = [
+    { name: '🏠 ' + t('nav.dashboard'), href: '/dashboard', match: (p: string) => p === '/dashboard' },
+    { name: '📚 My Lessons', href: '/dashboard/lessons', match: (p: string) => p === '/dashboard/lessons' },
+    { name: '🃏 ' + t('nav.flashcards'), href: '/dashboard/practice', match: (p: string) => p === '/dashboard/practice' },
+    { name: '🎯 ' + t('nav.quiz'), href: '/dashboard/quiz', match: (p: string) => p === '/dashboard/quiz' },
+    { name: '💬 Conversations', href: '/dashboard/conversations', match: (p: string) => p === '/dashboard/conversations' },
+    { name: '🔤 ' + t('nav.alphabet'), href: '/dashboard/alphabet', match: (p: string) => p === '/dashboard/alphabet' },
+    { name: '✡️ ' + t('nav.nikud'), href: '/dashboard/nikud', match: (p: string) => p === '/dashboard/nikud' },
+  ];
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push('/');
+    router.refresh();
+  };
+
+  return (
+    <div className="flex h-screen" style={{ background: 'var(--hm-bg)' }} dir="ltr">
+      <Toaster position="top-center" />
+
+      {/* Mobile Menu Button */}
+      <div className="md:hidden fixed top-4 right-4 z-50">
+        <button
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          style={{
+            padding: 10,
+            background: 'var(--hm-blue)',
+            color: 'white',
+            borderRadius: 12,
+            border: 'none',
+            boxShadow: 'var(--hm-shadow-md)',
+            cursor: 'pointer',
+          }}
+        >
+          {isMobileMenuOpen ? <XMarkIcon className="w-6 h-6" /> : <Bars3Icon className="w-6 h-6" />}
+        </button>
+      </div>
+
+      {/* Sidebar */}
+      <aside
+        className={`${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:static z-40 w-[260px] h-full transition-transform duration-200`}
+        style={{
+          background: 'white',
+          borderRight: '1px solid var(--hm-border)',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Logo */}
+        <div style={{ padding: '24px 20px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 36,
+              height: 36,
+              borderRadius: 10,
+              background: 'linear-gradient(135deg, var(--hm-blue), var(--hm-blue-light))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 18,
+            }}>🇮🇱</div>
+            <span style={{
+              fontFamily: '"Fraunces", serif',
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--hm-text)',
+              letterSpacing: '-0.02em',
+            }}>Hebrew Master</span>
+          </div>
+        </div>
+
+        {/* Level Badge */}
+        <div style={{
+          margin: '0 16px 16px',
+          padding: '14px 16px',
+          borderRadius: 12,
+          background: 'linear-gradient(135deg, #F0F4F8 0%, #E8EEF4 100%)',
+          border: '1px solid var(--hm-border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{
+                fontFamily: '"Frank Ruhl Libre", serif',
+                fontSize: 20,
+                color: 'var(--hm-blue)',
+                direction: 'rtl',
+              }}>{levelInfo.name}</span>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--hm-text-muted)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}>Level {levelInfo.level}</span>
+            </div>
+            {userStreak > 0 && (
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#F97316' }}>
+                🔥 {userStreak}
+              </span>
+            )}
+          </div>
+          <div className="hm-progress-bar">
+            <div className="hm-progress-fill" style={{ width: `${levelInfo.progress * 100}%` }} />
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: 'var(--hm-text-muted)',
+            marginTop: 6,
+            fontWeight: 500,
+          }}>
+            {userXP} XP {levelInfo.nextLevel && `· ${levelInfo.xpNeeded - levelInfo.xpInLevel} to ${levelInfo.nextLevel}`}
+          </div>
+        </div>
+
+        {/* Nav Links */}
+        <nav style={{ flex: 1, padding: '0 12px', overflow: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {links.map((link) => {
+              const isActive = link.match(pathname);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    padding: '10px 14px',
+                    borderRadius: 10,
+                    fontSize: 14,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? 'var(--hm-blue)' : 'var(--hm-text-secondary)',
+                    background: isActive ? 'var(--hm-blue-pale)' : 'transparent',
+                    textDecoration: 'none',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) e.currentTarget.style.background = '#F5F5F3';
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  {link.name}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* User & Logout */}
+        <div style={{ padding: 16, borderTop: '1px solid var(--hm-border)' }}>
+          {userEmail && (
+            <div style={{
+              fontSize: 12,
+              color: 'var(--hm-text-muted)',
+              marginBottom: 8,
+              padding: '0 8px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>{userEmail}</div>
+          )}
+          <button
+            onClick={handleLogout}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 8,
+              width: '100%',
+              padding: '10px 14px',
+              borderRadius: 10,
+              background: 'none',
+              border: 'none',
+              color: 'var(--hm-text-muted)',
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = '#EF4444';
+              e.currentTarget.style.background = '#FEF2F2';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--hm-text-muted)';
+              e.currentTarget.style.background = 'none';
+            }}
+          >
+            <ArrowLeftOnRectangleIcon className="w-4 h-4" />
+            Log Out
+          </button>
+        </div>
+      </aside>
+
+      {/* Overlay for mobile */}
+      {isMobileMenuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/30"
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto" style={{ background: 'var(--hm-bg)' }}>
+        {children}
+      </main>
+    </div>
+  );
+}
+</file>
+
+<file path="app/dashboard/page.tsx">
+'use client';
+
+export const dynamic = 'force-dynamic';
+
+import Link from 'next/link';
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { getLevelFromXP } from '@/hooks/useGameification';
+
+export default function Dashboard() {
+  const router = useRouter();
+  const { t } = useLanguage();
+  const [stats, setStats] = useState({ xp: 0, streak: 0, wordsLearned: 0, dueCards: 0, mastered: 0, lessonsCompleted: 0 });
+  const [recentLessons, setRecentLessons] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [userName, setUserName] = useState('Student');
+
+  const [supabase] = useState(() =>
+    createBrowserClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+  );
+
+  useEffect(() => {
+    loadDashboardData();
+  }, []);
+
+  const loadDashboardData = async () => {
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { router.push('/login'); return; }
+
+      // Get profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('xp, streak, display_name')
+        .eq('id', user.id)
+        .single();
+
+      setUserName(profile?.display_name || user.email?.split('@')[0] || 'Student');
+
+      // Get SRS cards
+      const { data: srsData } = await supabase
+        .from('srs_cards')
+        .select('*')
+        .eq('user_id', user.id);
+
+      const lessonCards = (srsData || []).filter(c => c.source === 'lesson');
+      const dueCards = lessonCards.filter(c => new Date(c.due_date) <= new Date());
+      const mastered = lessonCards.filter(c => c.stability >= 5);
+
+      // Get lessons
+      const { data: lessons } = await supabase
+        .from('lessons')
+        .select('id, lesson_number, topic_title, lesson_date, summary, talk_ratio_student, hebrew_percentage')
+        .eq('student_user_id', user.id)
+        .order('lesson_number', { ascending: false })
+        .limit(3);
+
+      setRecentLessons(lessons || []);
+
+      setStats({
+        xp: profile?.xp || 0,
+        streak: profile?.streak || 0,
+        wordsLearned: lessonCards.length,
+        dueCards: dueCards.length,
+        mastered: mastered.length,
+        lessonsCompleted: lessons?.length || 0,
+      });
+    } catch (error) {
+      console.error('Dashboard Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const levelInfo = getLevelFromXP(stats.xp);
+
+  const formatDate = (d: string) => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh' }}>
+        <div style={{
+          width: 40, height: 40,
+          border: '3px solid var(--hm-border)',
+          borderTopColor: 'var(--hm-blue)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: '32px 28px', maxWidth: 900, margin: '0 auto' }}>
+
+      {/* Greeting */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{
+          fontFamily: '"Fraunces", serif',
+          fontSize: 32,
+          fontWeight: 700,
+          color: 'var(--hm-text)',
+          marginBottom: 4,
+        }}>
+          שלום, {userName} 👋
+        </h1>
+        <p style={{ color: 'var(--hm-text-secondary)', fontSize: 15 }}>
+          {stats.dueCards > 0
+            ? `You have ${stats.dueCards} cards waiting for review`
+            : "You're all caught up! Great work."
+          }
+        </p>
+      </div>
+
+      {/* Stats Row */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+        gap: 12,
+        marginBottom: 28,
+      }}>
+        {[
+          { value: stats.lessonsCompleted, label: 'Lessons', icon: '📚' },
+          { value: stats.wordsLearned, label: 'Words Learned', icon: '📝' },
+          { value: stats.mastered, label: 'Mastered', icon: '⭐' },
+          { value: stats.streak > 0 ? `🔥 ${stats.streak}` : '—', label: 'Day Streak', icon: '' },
+        ].map((stat, i) => (
+          <div key={i} className="hm-card" style={{ padding: '18px 16px', textAlign: 'center' }}>
+            <div style={{
+              fontFamily: '"Fraunces", serif',
+              fontSize: 26,
+              fontWeight: 700,
+              color: 'var(--hm-text)',
+              lineHeight: 1.2,
+            }}>
+              {stat.icon && typeof stat.value === 'number' ? `${stat.icon} ${stat.value}` : stat.value}
+            </div>
+            <div style={{
+              fontSize: 11,
+              fontWeight: 600,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: 'var(--hm-text-muted)',
+              marginTop: 4,
+            }}>{stat.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Due Cards CTA */}
+      {stats.dueCards > 0 && (
+        <Link href="/dashboard/practice" style={{ textDecoration: 'none' }}>
+          <div className="hm-card hm-card-lift" style={{
+            padding: '20px 24px',
+            marginBottom: 28,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'linear-gradient(135deg, var(--hm-blue) 0%, var(--hm-blue-light) 100%)',
+            color: 'white',
+            border: 'none',
+            cursor: 'pointer',
+          }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>
+                🃏 {stats.dueCards} cards due for review
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.8 }}>Practice now to keep your streak alive</div>
+            </div>
+            <div style={{ fontSize: 28 }}>→</div>
+          </div>
+        </Link>
+      )}
+
+      {/* Recent Lessons */}
+      <div style={{ marginBottom: 28 }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: 16,
+        }}>
+          <h2 style={{
+            fontFamily: '"Fraunces", serif',
+            fontSize: 20,
+            fontWeight: 600,
+            color: 'var(--hm-text)',
+          }}>Recent Lessons</h2>
+          <Link href="/dashboard/lessons" style={{
+            fontSize: 13,
+            fontWeight: 600,
+            color: 'var(--hm-blue)',
+            textDecoration: 'none',
+          }}>View all →</Link>
+        </div>
+
+        {recentLessons.length === 0 ? (
+          <div className="hm-card" style={{
+            padding: '40px 24px',
+            textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>📚</div>
+            <p style={{ color: 'var(--hm-text-secondary)', fontSize: 14 }}>
+              Your lesson history will appear here after your first lesson.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {recentLessons.map((lesson) => (
+              <Link key={lesson.id} href="/dashboard/lessons" style={{ textDecoration: 'none' }}>
+                <div className="hm-card" style={{
+                  padding: '18px 22px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 16,
+                  cursor: 'pointer',
+                }}>
+                  <div style={{
+                    width: 44,
+                    height: 44,
+                    borderRadius: 12,
+                    background: 'linear-gradient(135deg, var(--hm-blue), var(--hm-blue-light))',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontFamily: '"Fraunces", serif',
+                    fontSize: 18,
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}>{lesson.lesson_number}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      fontSize: 15,
+                      fontWeight: 600,
+                      color: 'var(--hm-text)',
+                      marginBottom: 2,
+                    }}>{lesson.topic_title || `Lesson ${lesson.lesson_number}`}</div>
+                    <div style={{
+                      fontSize: 12,
+                      color: 'var(--hm-text-muted)',
+                      display: 'flex',
+                      gap: 8,
+                    }}>
+                      <span>{formatDate(lesson.lesson_date)}</span>
+                      {lesson.talk_ratio_student && (
+                        <span>· Talk: {lesson.talk_ratio_student}%{lesson.talk_ratio_student >= 50 ? ' 🟢' : lesson.talk_ratio_student >= 35 ? ' 🟡' : ' 🔴'}</span>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ color: 'var(--hm-text-muted)', fontSize: 18 }}>›</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Quick Actions */}
+      <div>
+        <h2 style={{
+          fontFamily: '"Fraunces", serif',
+          fontSize: 20,
+          fontWeight: 600,
+          color: 'var(--hm-text)',
+          marginBottom: 16,
+        }}>Quick Actions</h2>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 12,
+        }}>
+          {[
+            { href: '/dashboard/practice', icon: '🃏', label: 'Flashcards', desc: 'Review your words' },
+            { href: '/dashboard/quiz', icon: '🎯', label: 'Quiz', desc: 'Test yourself' },
+            { href: '/dashboard/conversations', icon: '💬', label: 'Conversations', desc: 'Practice speaking' },
+            { href: '/dashboard/alphabet', icon: '🔤', label: 'Alphabet', desc: 'Reference guide' },
+          ].map((action) => (
+            <Link key={action.href} href={action.href} style={{ textDecoration: 'none' }}>
+              <div className="hm-card hm-card-lift" style={{
+                padding: '20px 18px',
+                textAlign: 'center',
+                cursor: 'pointer',
+              }}>
+                <div style={{ fontSize: 32, marginBottom: 8 }}>{action.icon}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--hm-text)', marginBottom: 2 }}>{action.label}</div>
+                <div style={{ fontSize: 12, color: 'var(--hm-text-muted)' }}>{action.desc}</div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="app/dashboard/practice/page.tsx">
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
+import { useLanguage } from '@/app/context/LanguageContext';
+import { XP_REWARDS } from '@/lib/xp-system';
+
+interface Card {
+  id: string;
+  front: string;
+  back: string;
+  transliteration?: string;
+  source?: string;
+  stability: number;
+  difficulty: number;
+  state: number;
+  reps: number;
+}
+
+export default function PracticePage() {
+  const { t } = useLanguage();
+  const [allCards, setAllCards] = useState<Card[]>([]);
+  const [filteredCards, setFilteredCards] = useState<Card[]>([]);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [selectedLesson, setSelectedLesson] = useState<string>('all');
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isFlipped, setIsFlipped] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [sessionXP, setSessionXP] = useState(0);
+
+  const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data: cardsData } = await supabase
+        .from('srs_cards')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      setAllCards(cardsData || []);
+      setFilteredCards(cardsData || []);
+
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select('lesson_number, lesson_date, vocabulary')
+        .eq('student_user_id', user.id)
+        .order('lesson_number', { ascending: false });
+
+      setLessons(lessonsData || []);
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLessonFilter = (lessonNum: string) => {
+    setSelectedLesson(lessonNum);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+
+    if (lessonNum === 'all') {
+      setFilteredCards(allCards);
+      return;
+    }
+
+    const lesson = lessons.find(l => l.lesson_number.toString() === lessonNum);
+    if (!lesson) return;
+
+    const lessonWords = lesson.vocabulary.map((v: any) => v.front);
+    const filtered = allCards.filter(card => lessonWords.includes(card.front));
+    setFilteredCards(filtered);
+  };
+
+  const playAudio = async (text: string) => {
+    try {
+      const response = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      const blob = await response.blob();
+      const audio = new Audio(URL.createObjectURL(blob));
+      audio.play();
+    } catch (error) {
+      console.error('Audio error:', error);
+    }
+  };
+
+  const awardXP = async (xpAmount: number) => {
+    try {
+      const response = await fetch('/api/award-xp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ xpAmount }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        setSessionXP(prev => prev + xpAmount);
+        
+        if (data.leveledUp) {
+          confetti({ particleCount: 300, spread: 120 });
+          setTimeout(() => {
+            alert(`🎉 LEVEL UP! You reached ${data.newLevel}!`);
+          }, 500);
+        }
+      }
+    } catch (error) {
+      console.error('XP award error:', error);
+    }
+  };
+
+  const handleRating = async (rating: 'again' | 'hard' | 'good' | 'easy') => {
+    const xpMap = {
+      again: XP_REWARDS.FLASHCARD_AGAIN,
+      hard: XP_REWARDS.FLASHCARD_HARD,
+      good: XP_REWARDS.FLASHCARD_GOOD,
+      easy: XP_REWARDS.FLASHCARD_EASY,
+    };
+
+    await awardXP(xpMap[rating]);
+
+    if (currentIndex < filteredCards.length - 1) {
+      setCurrentIndex(currentIndex + 1);
+      setIsFlipped(false);
+    } else {
+      confetti({ particleCount: 200, spread: 90 });
+      setTimeout(() => {
+        alert(`🎉 Session complete! You earned ${sessionXP + xpMap[rating]} XP!`);
+      }, 500);
+      setCurrentIndex(0);
+      setIsFlipped(false);
+      setSessionXP(0);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-2xl font-bold text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
+  if (filteredCards.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-screen">
+        <div className="text-4xl mb-4">📚</div>
+        <div className="text-2xl font-bold text-slate-700">No cards yet!</div>
+        <div className="text-slate-500">Complete a lesson to start practicing</div>
+      </div>
+    );
+  }
+
+  const currentCard = filteredCards[currentIndex];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto">
+        {/* Header with Filter and XP */}
+        <div className="mb-8 bg-white rounded-2xl p-6 shadow-lg">
+          <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-black text-slate-900">🃏 Flashcards</h1>
+              <p className="text-slate-600 mt-1">
+                Card {currentIndex + 1} of {filteredCards.length}
+              </p>
+              {sessionXP > 0 && (
+                <p className="text-indigo-600 font-bold mt-1">
+                  ⭐ Session XP: +{sessionXP}
+                </p>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-bold text-slate-700">Filter by lesson:</label>
+              <select
+                value={selectedLesson}
+                onChange={(e) => handleLessonFilter(e.target.value)}
+                className="px-6 py-3 bg-indigo-50 border-2 border-indigo-200 rounded-xl font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                <option value="all">📚 All Lessons ({allCards.length} cards)</option>
+                {lessons.map((lesson) => (
+                  <option key={lesson.lesson_number} value={lesson.lesson_number}>
+                    Lesson {lesson.lesson_number} - {new Date(lesson.lesson_date).toLocaleDateString()}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Flashcard */}
+        <motion.div
+          className="relative w-full h-96 mb-8 cursor-pointer"
+          onClick={() => setIsFlipped(!isFlipped)}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={isFlipped ? 'back' : 'front'}
+              initial={{ rotateY: 90, opacity: 0 }}
+              animate={{ rotateY: 0, opacity: 1 }}
+              exit={{ rotateY: -90, opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 bg-white rounded-3xl shadow-2xl flex flex-col items-center justify-center p-8 border-4 border-indigo-100"
+            >
+              {!isFlipped ? (
+                <>
+                  <div className="text-7xl font-black text-slate-900 mb-4" dir="rtl">
+                    {currentCard.front}
+                  </div>
+                  {currentCard.transliteration && (
+                    <div className="text-2xl text-indigo-600 italic font-semibold">
+                      {currentCard.transliteration}
+                    </div>
+                  )}
+                  <div className="mt-8 text-slate-400 text-sm">Tap to reveal</div>
+                </>
+              ) : (
+                <>
+                  <div className="text-5xl font-bold text-slate-700 mb-4">
+                    {currentCard.back}
+                  </div>
+                  <div className="text-3xl text-slate-900 mb-6" dir="rtl">
+                    {currentCard.front}
+                  </div>
+                  {currentCard.transliteration && (
+                    <div className="text-xl text-indigo-600 italic">
+                      {currentCard.transliteration}
+                    </div>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Audio Button */}
+        <div className="flex justify-center mb-8">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              playAudio(currentCard.front);
+            }}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-4 rounded-2xl font-bold text-lg shadow-lg transition-all flex items-center gap-3"
+          >
+            🔊 Listen
+          </button>
+        </div>
+
+        {/* Rating Buttons */}
+        {isFlipped && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-2 md:grid-cols-4 gap-4"
+          >
+            <button
+              onClick={() => handleRating('again')}
+              className="bg-red-500 hover:bg-red-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              Again<br/>+{XP_REWARDS.FLASHCARD_AGAIN} XP
+            </button>
+            <button
+              onClick={() => handleRating('hard')}
+              className="bg-orange-500 hover:bg-orange-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              Hard<br/>+{XP_REWARDS.FLASHCARD_HARD} XP
+            </button>
+            <button
+              onClick={() => handleRating('good')}
+              className="bg-blue-500 hover:bg-blue-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              Good<br/>+{XP_REWARDS.FLASHCARD_GOOD} XP
+            </button>
+            <button
+              onClick={() => handleRating('easy')}
+              className="bg-green-500 hover:bg-green-600 text-white p-6 rounded-2xl font-bold shadow-lg transition-all"
+            >
+              Easy<br/>+{XP_REWARDS.FLASHCARD_EASY} XP
+            </button>
+          </motion.div>
+        )}
+      </div>
+    </div>
+  );
 }
 </file>
 

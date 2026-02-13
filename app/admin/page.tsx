@@ -34,7 +34,7 @@ interface ConversationPractice {
 }
 
 interface LessonData {
-  lesson_number: number
+  lesson_number: number | string // Allow string during edit
   lesson_date: string
   summary: string
   vocabulary: VocabularyItem[]
@@ -154,12 +154,22 @@ export default function AdminPage() {
       // 1. Try to parse JSON
       const parsed = JSON.parse(jsonInput)
       
-      // 2. Minimal validation (soft)
+      // 2. Validate ONLY if completely empty. We allow missing fields because you can edit them now.
       if (!parsed.vocabulary && !parsed.conversation_practice) {
-        throw new Error("JSON must contain at least 'vocabulary' or 'conversation_practice'")
+        throw new Error("JSON is too empty. Needs at least 'vocabulary' or 'conversation_practice'")
       }
 
-      setParsedData(parsed)
+      // Ensure defaults for metadata so UI doesn't crash
+      const safeData: LessonData = {
+        lesson_number: parsed.lesson_number || 1,
+        lesson_date: parsed.lesson_date || new Date().toISOString().split('T')[0],
+        summary: parsed.summary || '',
+        vocabulary: parsed.vocabulary || [],
+        conversation_practice: parsed.conversation_practice,
+        analysis: parsed.analysis || {}
+      }
+
+      setParsedData(safeData)
       setIsReviewing(true) // Switch UI to review mode
 
     } catch (e: any) {
@@ -209,7 +219,7 @@ export default function AdminPage() {
           student_user_id: student.user_id,
           student_name: student.student_name,
           // Use the edited data from state
-          lesson_number: parsedData.lesson_number,
+          lesson_number: Number(parsedData.lesson_number), // Ensure it's a number
           lesson_date: parsedData.lesson_date,
           summary: parsedData.summary,
           vocabulary: parsedData.vocabulary || [],
@@ -479,7 +489,7 @@ export default function AdminPage() {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
                   <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: 0 }}>
-                    Reviewing Lesson {parsedData.lesson_number}
+                    Reviewing Lesson
                   </h2>
                   <button 
                     onClick={() => setIsReviewing(false)}
@@ -494,6 +504,36 @@ export default function AdminPage() {
                   >
                     Cancel
                   </button>
+                </div>
+
+                {/* Metadata Editor */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px', paddingBottom: '24px', borderBottom: '1px solid #e5e7eb' }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#4b5563', marginBottom: '4px' }}>LESSON NUMBER</label>
+                    <input 
+                      type="number"
+                      value={parsedData.lesson_number}
+                      onChange={(e) => setParsedData({...parsedData, lesson_number: e.target.value})}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#4b5563', marginBottom: '4px' }}>DATE</label>
+                    <input 
+                      type="date"
+                      value={parsedData.lesson_date}
+                      onChange={(e) => setParsedData({...parsedData, lesson_date: e.target.value})}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px' }}
+                    />
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: 'bold', color: '#4b5563', marginBottom: '4px' }}>SUMMARY</label>
+                    <textarea 
+                      value={parsedData.summary}
+                      onChange={(e) => setParsedData({...parsedData, summary: e.target.value})}
+                      style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', height: '80px' }}
+                    />
+                  </div>
                 </div>
 
                 {/* Section: Vocabulary */}
@@ -580,4 +620,199 @@ export default function AdminPage() {
                             <input 
                               value={turn.text_en}
                               onChange={(e) => updateDialogue(idx, 'text_en', e.target.value)}
-                              style={{ width: '100%', padding: '6px', border: 'none', background: 'transparent', fontSize: '13px', color: '#64
+                              style={{ width: '100%', padding: '6px', border: 'none', background: 'transparent', fontSize: '13px', color: '#64748b' }}
+                              placeholder="Translation..."
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Button */}
+                <button
+                  onClick={handleFinalImport}
+                  disabled={loading}
+                  style={{
+                    width: '100%',
+                    padding: '16px',
+                    background: '#10b981',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: '#ffffff',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    cursor: loading ? 'wait' : 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px'
+                  }}
+                >
+                  {loading ? '⏳ Importing...' : '🚀 Confirm & Import Lesson'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* REGISTER TAB */}
+        {activeTab === 'register' && (
+          <div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  Student Name
+                </label>
+                <input
+                  value={newStudentName}
+                  onChange={(e) => setNewStudentName(e.target.value)}
+                  placeholder="Nikolai"
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#ffffff',
+                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                    fontSize: '15px'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  Email
+                </label>
+                <input
+                  value={newStudentEmail}
+                  onChange={(e) => setNewStudentEmail(e.target.value)}
+                  placeholder="nikolai@example.com"
+                  type="email"
+                  style={{
+                    width: '100%', padding: '12px 16px', background: '#ffffff',
+                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                    fontSize: '15px'
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                    Language
+                  </label>
+                  <select
+                    value={newStudentLang}
+                    onChange={(e) => setNewStudentLang(e.target.value)}
+                    style={{
+                      width: '100%', padding: '12px 16px', background: '#ffffff',
+                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                      fontSize: '15px'
+                    }}
+                  >
+                    <option value="en">English</option>
+                    <option value="fr">French</option>
+                    <option value="ru">Russian</option>
+                    <option value="es">Spanish</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                    Learning Goals
+                  </label>
+                  <input
+                    value={newStudentGoals}
+                    onChange={(e) => setNewStudentGoals(e.target.value)}
+                    placeholder="Torah reading, conversation..."
+                    style={{
+                      width: '100%', padding: '12px 16px', background: '#ffffff',
+                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                      fontSize: '15px'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleRegister}
+                disabled={loading || !newStudentName || !newStudentEmail}
+                style={{
+                  padding: '16px',
+                  background: (!newStudentName || !newStudentEmail) ? '#e5e7eb' : '#3b82f6',
+                  border: 'none', borderRadius: '8px',
+                  color: (!newStudentName || !newStudentEmail) ? '#9ca3af' : '#ffffff',
+                  fontSize: '16px', fontWeight: 700, 
+                  cursor: (!newStudentName || !newStudentEmail) ? 'not-allowed' : 'pointer'
+                }}
+              >
+                {loading ? '⏳ Registering...' : '👤 Register Student'}
+              </button>
+
+              {registerResult && (
+                <div style={{
+                  padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac',
+                  borderRadius: '8px', color: '#166534', fontSize: '14px', fontWeight: 600
+                }}>
+                  {registerResult}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* HISTORY TAB */}
+        {activeTab === 'history' && (
+          <div>
+            <select
+              value={selectedStudent}
+              onChange={(e) => {
+                setSelectedStudent(e.target.value)
+                const s = students.find(s => s.user_id === e.target.value)
+                if (s) loadHistory(s.student_name)
+              }}
+              style={{
+                width: '100%', padding: '12px 16px', background: '#ffffff',
+                border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
+                fontSize: '15px', marginBottom: '20px'
+              }}
+            >
+              <option value="">-- Select student --</option>
+              {students.map(s => (
+                <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
+              ))}
+            </select>
+
+            {lessons.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
+                {selectedStudent ? 'No lessons yet.' : 'Select a student above.'}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {lessons.map(lesson => (
+                  <div
+                    key={lesson.id}
+                    style={{
+                      padding: '16px',
+                      background: '#f9fafb',
+                      border: '1px solid #e5e7eb',
+                      borderRadius: '8px'
+                    }}
+                  >
+                    <div style={{ fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
+                      Lesson {lesson.lesson_number} • {lesson.lesson_date}
+                    </div>
+                    {lesson.summary && (
+                      <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 8px' }}>
+                        {lesson.summary.substring(0, 150)}...
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}

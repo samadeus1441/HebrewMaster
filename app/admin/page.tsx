@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
-// --- 1. TYPES (Updated for Review) ---
+// --- 1. TYPES ---
 interface Student {
   id: string
   user_id: string
@@ -53,19 +53,36 @@ interface ImportResult {
 const EXAMPLE_JSON = `{
   "lesson_number": 1,
   "lesson_date": "${new Date().toISOString().split('T')[0]}",
-  "summary": "Trial lesson. Covered basic greetings...",
+  "summary": "Trial lesson. Covered basic greetings and self-introduction...",
   "vocabulary": [
-    {"front": "שָׁלוֹם", "back": "Hello", "transliteration": "shalom", "category": "greetings"}
+    {"front": "שָׁלוֹם", "back": "Hello / Peace", "transliteration": "shalom", "category": "greetings"},
+    {"front": "מַה שְׁלוֹמְךָ", "back": "How are you? (m)", "transliteration": "ma shlomkha", "category": "phrases"}
   ],
   "conversation_practice": {
-    "title": "Ordering Coffee",
-    "context": "At Aroma",
+    "title": "Basic Greeting",
+    "context": "Meeting a friend on the street",
     "dialogue": [
-      {"speaker": "Teacher", "text_he": "מַה בִּשְׁבִילְךָ?", "text_en": "What for you?", "type": "statement"}
+      {
+        "speaker": "Teacher",
+        "text_he": "בּוֹקֶר טוֹב דָּנִי!",
+        "text_en": "Good morning Dani!",
+        "type": "statement"
+      },
+      {
+        "speaker": "Student",
+        "text_he": "בּוֹקֶר אוֹר, מַה נִּשְׁמָע?",
+        "text_en": "Morning light (response), how are things?",
+        "type": "statement"
+      }
     ]
   },
   "analysis": {
-    "struggles": [], "strengths": [], "recommendations": [], "talk_ratio": {"student": 35, "teacher": 65}, "hebrew_percentage": 20, "notes": ""
+    "struggles": ["Gender agreement", "Pronunciation of ח"],
+    "strengths": ["Good ear for vowels", "Quick recall"],
+    "recommendations": ["Drill greeting responses", "Practice ח vs כ minimal pairs"],
+    "talk_ratio": {"student": 35, "teacher": 65},
+    "hebrew_percentage": 20,
+    "notes": "Motivated student, learns through conversation"
   }
 }`
 
@@ -89,7 +106,7 @@ export default function AdminPage() {
   // History State
   const [lessons, setLessons] = useState<any[]>([])
 
-  // --- NEW: Review State (HIDL) ---
+  // --- NEW: HIDL Review State ---
   const [isReviewing, setIsReviewing] = useState(false)
   const [parsedData, setParsedData] = useState<LessonData | null>(null)
 
@@ -123,7 +140,7 @@ export default function AdminPage() {
 
   // --- HANDLERS ---
 
-  // Step 1: Parse JSON and open Review Mode
+  // Phase 1: Parse & Review
   const handleParseAndReview = () => {
     setError(null)
     setResult(null)
@@ -134,18 +151,23 @@ export default function AdminPage() {
     }
 
     try {
+      // 1. Try to parse JSON
       const parsed = JSON.parse(jsonInput)
-      // Basic validation
-      if (!parsed.lesson_number) throw new Error("Missing 'lesson_number'")
       
+      // 2. Minimal validation (soft)
+      if (!parsed.vocabulary && !parsed.conversation_practice) {
+        throw new Error("JSON must contain at least 'vocabulary' or 'conversation_practice'")
+      }
+
       setParsedData(parsed)
-      setIsReviewing(true) // Switch to review UI
+      setIsReviewing(true) // Switch UI to review mode
+
     } catch (e: any) {
-      setError('Invalid JSON. Copy the exact output from Claude. ' + e.message)
+      setError('Invalid JSON. Please check the output from Claude. Error: ' + e.message)
     }
   }
 
-  // Edit Helper: Update Vocabulary
+  // Edit Helpers
   const updateVocab = (index: number, field: keyof VocabularyItem, value: string) => {
     if (!parsedData) return
     const newVocab = [...parsedData.vocabulary]
@@ -153,7 +175,6 @@ export default function AdminPage() {
     setParsedData({ ...parsedData, vocabulary: newVocab })
   }
 
-  // Edit Helper: Update Dialogue
   const updateDialogue = (index: number, field: keyof DialogueTurn, value: string) => {
     if (!parsedData || !parsedData.conversation_practice) return
     const newDialogue = [...parsedData.conversation_practice.dialogue]
@@ -167,10 +188,10 @@ export default function AdminPage() {
     })
   }
 
-  // Step 2: Final Import (Sends the EDITED data)
+  // Phase 2: Final Import
   async function handleFinalImport() {
     if (!selectedStudent || !parsedData) return
-
+    
     const student = students.find(s => s.user_id === selectedStudent)
     if (!student) {
       setError('Student not found')
@@ -178,6 +199,7 @@ export default function AdminPage() {
     }
 
     setLoading(true)
+    setError(null)
 
     try {
       const res = await fetch('/api/import-lesson', {
@@ -186,12 +208,12 @@ export default function AdminPage() {
         body: JSON.stringify({
           student_user_id: student.user_id,
           student_name: student.student_name,
-          // Use the parsedData (which might have been edited by you)
+          // Use the edited data from state
           lesson_number: parsedData.lesson_number,
           lesson_date: parsedData.lesson_date,
           summary: parsedData.summary,
           vocabulary: parsedData.vocabulary || [],
-          conversation_practice: parsedData.conversation_practice, // Added support for scenarios
+          conversation_practice: parsedData.conversation_practice,
           analysis: parsedData.analysis || {}
         })
       })
@@ -200,8 +222,9 @@ export default function AdminPage() {
 
       if (data.success) {
         setResult(data)
+        // Reset everything
         setJsonInput('')
-        setIsReviewing(false) // Close review mode
+        setIsReviewing(false)
         setParsedData(null)
         loadHistory(student.student_name)
       } else {
@@ -214,7 +237,7 @@ export default function AdminPage() {
     }
   }
 
-  // Register Logic (Unchanged)
+  // Register Handler
   async function handleRegister() {
     setRegisterResult(null)
     setError(null)
@@ -289,7 +312,7 @@ export default function AdminPage() {
         {(['import', 'register', 'history'] as const).map(tab => (
           <button
             key={tab}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => { setActiveTab(tab); setIsReviewing(false); }}
             style={{
               padding: '14px 24px',
               background: 'none',
@@ -340,11 +363,17 @@ export default function AdminPage() {
         {/* IMPORT TAB */}
         {activeTab === 'import' && (
           <div>
-            {/* --- PHASE 1: Paste JSON (Only show if NOT reviewing) --- */}
+            {/* View 1: Paste JSON (When NOT reviewing) */}
             {!isReviewing && (
               <>
                 <div style={{ marginBottom: '24px' }}>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                  <label style={{ 
+                    display: 'block', 
+                    fontSize: '13px', 
+                    fontWeight: 600, 
+                    color: '#374151',
+                    marginBottom: '8px' 
+                  }}>
                     Select Student
                   </label>
                   <select
@@ -371,6 +400,12 @@ export default function AdminPage() {
                       </option>
                     ))}
                   </select>
+                  
+                  {students.length === 0 && (
+                    <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '8px' }}>
+                      No students yet. Go to "Add Student" tab first.
+                    </p>
+                  )}
                 </div>
 
                 <div style={{ marginBottom: '24px' }}>
@@ -419,7 +454,7 @@ export default function AdminPage() {
                   style={{
                     width: '100%',
                     padding: '16px',
-                    background: (!selectedStudent || !jsonInput) ? '#e5e7eb' : '#3b82f6',
+                    background: (!selectedStudent || !jsonInput) ? '#e5e7eb' : '#10b981',
                     border: 'none',
                     borderRadius: '8px',
                     color: (!selectedStudent || !jsonInput) ? '#9ca3af' : '#ffffff',
@@ -433,295 +468,116 @@ export default function AdminPage() {
               </>
             )}
 
-            {/* --- PHASE 2: Review & Edit (Only show if reviewing) --- */}
+            {/* View 2: Review Mode (HIDL) */}
             {isReviewing && parsedData && (
               <div style={{ 
-                animation: 'fadeIn 0.3s',
                 border: '2px solid #3b82f6', 
                 borderRadius: '12px', 
-                padding: '24px',
-                background: '#ffffff'
+                padding: '24px', 
+                background: '#ffffff',
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
-                    Reviewing: Lesson {parsedData.lesson_number}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: 'bold', color: '#111827', margin: 0 }}>
+                    Reviewing Lesson {parsedData.lesson_number}
                   </h2>
                   <button 
                     onClick={() => setIsReviewing(false)}
-                    style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                    style={{ 
+                      color: '#ef4444', 
+                      background: 'none', 
+                      border: 'none', 
+                      cursor: 'pointer', 
+                      fontWeight: 'bold',
+                      fontSize: '14px'
+                    }}
                   >
                     Cancel
                   </button>
                 </div>
 
-                {/* Vocabulary Editor */}
-                <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#4b5563' }}>
-                  📚 Vocabulary ({parsedData.vocabulary.length})
-                </h3>
-                <div style={{ overflowX: 'auto', marginBottom: '24px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
-                    <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
-                      <tr>
-                        <th style={{ padding: '10px', textAlign: 'left' }}>Hebrew</th>
-                        <th style={{ padding: '10px', textAlign: 'left' }}>English</th>
-                        <th style={{ padding: '10px', textAlign: 'left' }}>Translit</th>
-                        <th style={{ padding: '10px', textAlign: 'left' }}>Cat</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {parsedData.vocabulary.map((item, idx) => (
-                        <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
-                          <td style={{ padding: '5px' }}>
-                            <input 
-                              value={item.front} 
-                              onChange={(e) => updateVocab(idx, 'front', e.target.value)}
-                              dir="rtl"
-                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px' }} 
-                            />
-                          </td>
-                          <td style={{ padding: '5px' }}>
-                             <input 
-                              value={item.back} 
-                              onChange={(e) => updateVocab(idx, 'back', e.target.value)}
-                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px' }} 
-                            />
-                          </td>
-                          <td style={{ padding: '5px' }}>
-                             <input 
-                              value={item.transliteration} 
-                              onChange={(e) => updateVocab(idx, 'transliteration', e.target.value)}
-                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', color: '#2563eb' }} 
-                            />
-                          </td>
-                           <td style={{ padding: '5px' }}>
-                             <input 
-                              value={item.category} 
-                              onChange={(e) => updateVocab(idx, 'category', e.target.value)}
-                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px' }} 
-                            />
-                          </td>
+                {/* Section: Vocabulary */}
+                <div style={{ marginBottom: '32px' }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#4b5563', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    📚 Vocabulary 
+                    <span style={{ fontSize: '12px', background: '#e5e7eb', padding: '2px 8px', borderRadius: '12px' }}>
+                      {parsedData.vocabulary.length} words
+                    </span>
+                  </h3>
+                  
+                  <div style={{ overflowX: 'auto', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                      <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                        <tr>
+                          <th style={{ padding: '12px', textAlign: 'left', width: '25%' }}>Hebrew</th>
+                          <th style={{ padding: '12px', textAlign: 'left', width: '25%' }}>Transliteration</th>
+                          <th style={{ padding: '12px', textAlign: 'left', width: '25%' }}>English</th>
+                          <th style={{ padding: '12px', textAlign: 'left', width: '25%' }}>Category</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {parsedData.vocabulary.map((item, idx) => (
+                          <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                            <td style={{ padding: '8px' }}>
+                              <input 
+                                value={item.front} 
+                                onChange={(e) => updateVocab(idx, 'front', e.target.value)}
+                                dir="rtl"
+                                style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', textAlign: 'right', fontWeight: 'bold' }} 
+                              />
+                            </td>
+                            <td style={{ padding: '8px' }}>
+                              <input 
+                                value={item.transliteration} 
+                                onChange={(e) => updateVocab(idx, 'transliteration', e.target.value)}
+                                style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', fontFamily: 'monospace', color: '#2563eb' }} 
+                              />
+                            </td>
+                            <td style={{ padding: '8px' }}>
+                              <input 
+                                value={item.back} 
+                                onChange={(e) => updateVocab(idx, 'back', e.target.value)}
+                                style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px' }} 
+                              />
+                            </td>
+                            <td style={{ padding: '8px' }}>
+                              <input 
+                                value={item.category} 
+                                onChange={(e) => updateVocab(idx, 'category', e.target.value)}
+                                style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px', background: '#f9fafb' }} 
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
-                {/* Scenario Editor (If exists) */}
+                {/* Section: Scenario */}
                 {parsedData.conversation_practice && (
-                  <div style={{ marginBottom: '24px' }}>
-                    <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#4b5563' }}>
+                  <div style={{ marginBottom: '32px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 'bold', color: '#4b5563', marginBottom: '12px' }}>
                       💬 Scenario: {parsedData.conversation_practice.title}
                     </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', background: '#f8fafc', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                       {parsedData.conversation_practice.dialogue.map((turn, idx) => (
-                        <div key={idx} style={{ display: 'flex', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
-                           <div style={{ width: '80px' }}>
-                              <input 
-                                value={turn.speaker}
-                                onChange={(e) => updateDialogue(idx, 'speaker', e.target.value)}
-                                style={{ width: '100%', fontWeight: 'bold', fontSize: '12px', padding: '4px', textAlign: 'center' }}
-                              />
-                           </div>
-                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
-                             <input 
-                                value={turn.text_he}
-                                onChange={(e) => updateDialogue(idx, 'text_he', e.target.value)}
-                                dir="rtl"
-                                style={{ width: '100%', fontWeight: 'bold', padding: '5px' }}
-                              />
-                              <input 
-                                value={turn.text_en}
-                                onChange={(e) => updateDialogue(idx, 'text_en', e.target.value)}
-                                style={{ width: '100%', fontSize: '13px', color: '#6b7280', padding: '5px' }}
-                              />
-                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div style={{ marginTop: '20px' }}>
-                  <button
-                    onClick={handleFinalImport}
-                    disabled={loading}
-                    style={{
-                      width: '100%',
-                      padding: '16px',
-                      background: '#10b981',
-                      border: 'none',
-                      borderRadius: '8px',
-                      color: '#ffffff',
-                      fontSize: '16px',
-                      fontWeight: 700,
-                      cursor: loading ? 'wait' : 'pointer',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  >
-                    {loading ? '⏳ Importing...' : '🚀 Confirm & Import Lesson'}
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* REGISTER TAB */}
-        {activeTab === 'register' && (
-          <div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                  Student Name
-                </label>
-                <input
-                  value={newStudentName}
-                  onChange={(e) => setNewStudentName(e.target.value)}
-                  placeholder="Nikolai"
-                  style={{
-                    width: '100%', padding: '12px 16px', background: '#ffffff',
-                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                  Email
-                </label>
-                <input
-                  value={newStudentEmail}
-                  onChange={(e) => setNewStudentEmail(e.target.value)}
-                  placeholder="nikolai@example.com"
-                  type="email"
-                  style={{
-                    width: '100%', padding: '12px 16px', background: '#ffffff',
-                    border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
-                    fontSize: '15px'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: '16px' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                    Language
-                  </label>
-                  <select
-                    value={newStudentLang}
-                    onChange={(e) => setNewStudentLang(e.target.value)}
-                    style={{
-                      width: '100%', padding: '12px 16px', background: '#ffffff',
-                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
-                      fontSize: '15px'
-                    }}
-                  >
-                    <option value="en">English</option>
-                    <option value="fr">French</option>
-                    <option value="ru">Russian</option>
-                    <option value="es">Spanish</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
-                    Learning Goals
-                  </label>
-                  <input
-                    value={newStudentGoals}
-                    onChange={(e) => setNewStudentGoals(e.target.value)}
-                    placeholder="Torah reading, conversation..."
-                    style={{
-                      width: '100%', padding: '12px 16px', background: '#ffffff',
-                      border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
-                      fontSize: '15px'
-                    }}
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleRegister}
-                disabled={loading || !newStudentName || !newStudentEmail}
-                style={{
-                  padding: '16px',
-                  background: (!newStudentName || !newStudentEmail) ? '#e5e7eb' : '#3b82f6',
-                  border: 'none', borderRadius: '8px',
-                  color: (!newStudentName || !newStudentEmail) ? '#9ca3af' : '#ffffff',
-                  fontSize: '16px', fontWeight: 700, 
-                  cursor: (!newStudentName || !newStudentEmail) ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {loading ? '⏳ Registering...' : '👤 Register Student'}
-              </button>
-
-              {registerResult && (
-                <div style={{
-                  padding: '12px 16px', background: '#f0fdf4', border: '1px solid #86efac',
-                  borderRadius: '8px', color: '#166534', fontSize: '14px', fontWeight: 600
-                }}>
-                  {registerResult}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* HISTORY TAB */}
-        {activeTab === 'history' && (
-          <div>
-            <select
-              value={selectedStudent}
-              onChange={(e) => {
-                setSelectedStudent(e.target.value)
-                const s = students.find(s => s.user_id === e.target.value)
-                if (s) loadHistory(s.student_name)
-              }}
-              style={{
-                width: '100%', padding: '12px 16px', background: '#ffffff',
-                border: '2px solid #d1d5db', borderRadius: '8px', color: '#111827',
-                fontSize: '15px', marginBottom: '20px'
-              }}
-            >
-              <option value="">-- Select student --</option>
-              {students.map(s => (
-                <option key={s.user_id} value={s.user_id}>{s.student_name}</option>
-              ))}
-            </select>
-
-            {lessons.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '48px', color: '#9ca3af' }}>
-                {selectedStudent ? 'No lessons yet.' : 'Select a student above.'}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {lessons.map(lesson => (
-                  <div
-                    key={lesson.id}
-                    style={{
-                      padding: '16px',
-                      background: '#f9fafb',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px'
-                    }}
-                  >
-                    <div style={{ fontWeight: 700, color: '#111827', marginBottom: '8px' }}>
-                      Lesson {lesson.lesson_number} • {lesson.lesson_date}
-                    </div>
-                    {lesson.summary && (
-                      <p style={{ fontSize: '14px', color: '#6b7280', margin: '0 0 8px' }}>
-                        {lesson.summary.substring(0, 150)}...
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
+                        <div key={idx} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                          <div style={{ width: '100px', flexShrink: 0 }}>
+                            <input 
+                              value={turn.speaker}
+                              onChange={(e) => updateDialogue(idx, 'speaker', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #cbd5e1', borderRadius: '4px', fontWeight: 'bold', fontSize: '12px', textAlign: 'center', background: '#fff' }}
+                            />
+                          </div>
+                          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <input 
+                              value={turn.text_he}
+                              onChange={(e) => updateDialogue(idx, 'text_he', e.target.value)}
+                              dir="rtl"
+                              style={{ width: '100%', padding: '8px', border: '1px solid #cbd5e1', borderRadius: '4px', fontWeight: 'bold', fontSize: '16px', background: '#fff' }}
+                            />
+                            <input 
+                              value={turn.text_en}
+                              onChange={(e) => updateDialogue(idx, 'text_en', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: 'none', background: 'transparent', fontSize: '13px', color: '#64

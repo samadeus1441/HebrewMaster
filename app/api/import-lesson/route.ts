@@ -10,27 +10,29 @@ const supabase = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    
+
     const {
       student_user_id,
       student_name,
       lesson_number,
       lesson_date,
+      topic_title,
       summary,
       vocabulary,
       analysis,
-      conversation_practice // <--- שדה חדש מהפרומפט
+      conversation_practice,
+      additional_scenarios,
+      grammar_points,
+      cultural_notes,
+      homework,
     } = body
 
     // 1. Validate
     if (!student_user_id || !student_name || !lesson_number) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // 2. Import Lesson & Vocabulary (Existing logic)
+    // 2. Import Lesson & Vocabulary via RPC
     const { data: lessonId, error: lessonError } = await supabase.rpc('import_lesson_data', {
       p_student_user_id: student_user_id,
       p_student_name: student_name,
@@ -43,24 +45,53 @@ export async function POST(req: NextRequest) {
 
     if (lessonError) throw lessonError
 
-    // 3. Import Conversation Scenario (NEW LOGIC)
-    let scenarioCreated = false
+    // 3. Update lesson with expanded fields (topic_title, grammar, cultural notes, homework)
+    if (lessonId) {
+      const updatePayload: Record<string, any> = {}
+      if (topic_title) updatePayload.topic_title = topic_title
+      if (grammar_points && grammar_points.length > 0) updatePayload.grammar_points = grammar_points
+      if (cultural_notes && cultural_notes.length > 0) updatePayload.cultural_notes = cultural_notes
+      if (homework && homework.length > 0) updatePayload.homework = homework
+
+      if (Object.keys(updatePayload).length > 0) {
+        await supabase.from('lessons').update(updatePayload).eq('id', lessonId)
+      }
+    }
+
+    // 4. Import Main Conversation Scenario
+    let scenariosCreated = 0
     if (conversation_practice && conversation_practice.dialogue) {
       const { error: scenarioError } = await supabase
         .from('conversation_scenarios')
         .insert({
           student_id: student_user_id,
-          lesson_id: lessonId, // מקשרים לשיעור שנוצר
+          lesson_id: lessonId,
           title: conversation_practice.title || `Scenario Lesson ${lesson_number}`,
           context: conversation_practice.context || '',
-          dialogue: conversation_practice.dialogue // שומרים את ה-JSON המלא
+          dialogue: conversation_practice.dialogue
         })
 
-      if (scenarioError) {
-        console.error('Scenario import error:', scenarioError)
-        // לא עוצרים את הריצה, רק מדפיסים שגיאה
-      } else {
-        scenarioCreated = true
+      if (!scenarioError) scenariosCreated++
+      else console.error('Main scenario import error:', scenarioError)
+    }
+
+    // 5. Import Additional Scenarios
+    if (additional_scenarios && additional_scenarios.length > 0) {
+      for (const scenario of additional_scenarios) {
+        if (scenario.dialogue && scenario.dialogue.length > 0) {
+          const { error: extraError } = await supabase
+            .from('conversation_scenarios')
+            .insert({
+              student_id: student_user_id,
+              lesson_id: lessonId,
+              title: scenario.title || `Extra Scenario Lesson ${lesson_number}`,
+              context: scenario.context || '',
+              dialogue: scenario.dialogue
+            })
+
+          if (!extraError) scenariosCreated++
+          else console.error('Additional scenario import error:', extraError)
+        }
       }
     }
 
@@ -68,16 +99,13 @@ export async function POST(req: NextRequest) {
       success: true,
       lesson_id: lessonId,
       cards_created: vocabulary?.length || 0,
-      scenario_created: scenarioCreated,
-      message: `Lesson ${lesson_number} imported. ${vocabulary?.length || 0} words, Scenario: ${scenarioCreated ? 'Yes' : 'No'}`
+      scenarios_created: scenariosCreated,
+      message: `Lesson ${lesson_number} imported. ${vocabulary?.length || 0} words, ${scenariosCreated} scenarios, ${grammar_points?.length || 0} grammar points.`
     })
 
   } catch (err: any) {
     console.error('Import error:', err)
-    return NextResponse.json(
-      { error: err.message || 'Unknown error' },
-      { status: 500 }
-    )
+    return NextResponse.json({ error: err.message || 'Unknown error' }, { status: 500 })
   }
 }
 

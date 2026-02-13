@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 // Use service role key for admin operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! // NOT the anon key - needs admin access
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
 export async function POST(req: NextRequest) {
@@ -17,20 +17,21 @@ export async function POST(req: NextRequest) {
       lesson_number,
       lesson_date,
       summary,
-      vocabulary,  // Array of {front, back, transliteration, category}
-      analysis     // Free-form JSON with struggles, recommendations, etc.
+      vocabulary,
+      analysis,
+      conversation_practice // <--- שדה חדש מהפרומפט
     } = body
 
-    // Validate required fields
+    // 1. Validate
     if (!student_user_id || !student_name || !lesson_number) {
       return NextResponse.json(
-        { error: 'Missing required fields: student_user_id, student_name, lesson_number' },
+        { error: 'Missing required fields' },
         { status: 400 }
       )
     }
 
-    // Call the import function we created in Supabase
-    const { data, error } = await supabase.rpc('import_lesson_data', {
+    // 2. Import Lesson & Vocabulary (Existing logic)
+    const { data: lessonId, error: lessonError } = await supabase.rpc('import_lesson_data', {
       p_student_user_id: student_user_id,
       p_student_name: student_name,
       p_lesson_number: lesson_number,
@@ -40,16 +41,35 @@ export async function POST(req: NextRequest) {
       p_analysis: analysis || {}
     })
 
-    if (error) {
-      console.error('Supabase error:', error)
-      return NextResponse.json({ error: error.message }, { status: 500 })
+    if (lessonError) throw lessonError
+
+    // 3. Import Conversation Scenario (NEW LOGIC)
+    let scenarioCreated = false
+    if (conversation_practice && conversation_practice.dialogue) {
+      const { error: scenarioError } = await supabase
+        .from('conversation_scenarios')
+        .insert({
+          student_id: student_user_id,
+          lesson_id: lessonId, // מקשרים לשיעור שנוצר
+          title: conversation_practice.title || `Scenario Lesson ${lesson_number}`,
+          context: conversation_practice.context || '',
+          dialogue: conversation_practice.dialogue // שומרים את ה-JSON המלא
+        })
+
+      if (scenarioError) {
+        console.error('Scenario import error:', scenarioError)
+        // לא עוצרים את הריצה, רק מדפיסים שגיאה
+      } else {
+        scenarioCreated = true
+      }
     }
 
     return NextResponse.json({
       success: true,
-      lesson_id: data,
+      lesson_id: lessonId,
       cards_created: vocabulary?.length || 0,
-      message: `Lesson ${lesson_number} imported for ${student_name}. ${vocabulary?.length || 0} flashcards created.`
+      scenario_created: scenarioCreated,
+      message: `Lesson ${lesson_number} imported. ${vocabulary?.length || 0} words, Scenario: ${scenarioCreated ? 'Yes' : 'No'}`
     })
 
   } catch (err: any) {
@@ -61,7 +81,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// GET: List all students for the admin dropdown
 export async function GET() {
   try {
     const { data, error } = await supabase
@@ -69,10 +88,7 @@ export async function GET() {
       .select('id, user_id, student_name, native_language, current_level, created_at')
       .order('student_name')
 
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
-
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ students: data || [] })
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 })

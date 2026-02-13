@@ -10,7 +10,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 opacity-20 pointer-events-none" 
              style={{ backgroundImage: `url("https://www.transparenttextures.com/patterns/natural-paper.png")` }}></div>
         
-        {/* The Aura Animation (Uses the CSS from globals.css) */}
+        {/* The Aura Animation */}
         <div className="hm-aura absolute inset-0 pointer-events-none"></div>
 
         <div className="container mx-auto px-6 relative z-10 text-center">
@@ -20,12 +20,14 @@ export default function LandingPage() {
             </span>
           </div>
           
-          <h1 className="text-6xl md:text-8xl font-serif mb-8 text-[#001B4D] leading-tight">
-            עברית היא לא שפה,<br />
+          {/* הוספתי dir="rtl" כאן כדי שהפסיק והנקודה יהיו במקום הנכון */}
+          <h1 className="text-6xl md:text-8xl font-serif mb-8 text-[#001B4D] leading-tight" dir="rtl">
+            עברית היא לא שפה,
+            <br />
             <span className="italic text-[#CFBA8C]">היא זהות.</span>
           </h1>
           
-          <p className="max-w-2xl mx-auto text-xl text-[#4a4a4a] leading-relaxed mb-12 font-light">
+          <p className="max-w-2xl mx-auto text-xl text-[#4a4a4a] leading-relaxed mb-12 font-light" dir="rtl">
             אנחנו לא מלמדים אותך לדקלם מילים. אנחנו מפרקים את הפחד ומפעילים בתוכך את העברית דרך שושלת של סמכות, דיוק ורוח.
           </p>
 
@@ -49,15 +51,15 @@ export default function LandingPage() {
               <div className="aspect-[4/5] bg-[#f4f1ea] border border-[#CFBA8C]/40 p-12 flex flex-col justify-end relative overflow-hidden">
                 <span className="absolute top-[-20px] right-[-20px] text-[20rem] font-serif text-[#CFBA8C]/10 select-none">א</span>
                 <div className="relative z-10">
-                  <h3 className="text-3xl font-serif text-[#001B4D] mb-4">ספרא דדיינא</h3>
-                  <p className="text-[#4a4a4a] italic leading-relaxed">
+                  <h3 className="text-3xl font-serif text-[#001B4D] mb-4" dir="rtl">ספרא דדיינא</h3>
+                  <p className="text-[#4a4a4a] italic leading-relaxed" dir="rtl">
                     "סמכות היא לא משהו שרוכשים בקורס, היא משהו שעובר מדור לדור. כשאנחנו מדברים על דיוק בשפה, אנחנו מדברים על שושלת שהתחילה בבתי הדין של ירושלים."
                   </p>
                 </div>
               </div>
             </div>
             
-            <div>
+            <div dir="rtl" className="text-right">
               <h2 className="text-4xl font-serif text-[#001B4D] mb-8 leading-snug">
                 נצר לרב עקיבא יוסף שלזינגר: <br />
                 <span className="text-[#CFBA8C]">דיוק ששורשיו עמוקים.</span>
@@ -70,7 +72,7 @@ export default function LandingPage() {
                   { icon: Shield, title: "סמכות ריבונית", desc: "למידה מנציג של מסורת לשונית ירושלמית." },
                   { icon: Mic2, title: "הפעלה (Activation)", desc: "אנחנו מפרקים את ה'ביצועיזם' ומתמקדים בדיבור חופשי." }
                 ].map((item, i) => (
-                  <div key={i} className="flex gap-6">
+                  <div key={i} className="flex gap-6 items-start">
                     <div className="w-12 h-12 flex-shrink-0 bg-[#001B4D]/5 flex items-center justify-center rounded-full">
                       <item.icon className="w-6 h-6 text-[#001B4D]" />
                     </div>
@@ -89,8 +91,8 @@ export default function LandingPage() {
       {/* The Philosophy: Unlearning */}
       <section className="py-24 bg-[#001B4D] text-white">
         <div className="container mx-auto px-6 text-center">
-          <h2 className="text-4xl font-serif mb-16 text-[#CFBA8C]">השיטה: Unlearning</h2>
-          <div className="grid md:grid-cols-3 gap-12">
+          <h2 className="text-4xl font-serif mb-16 text-[#CFBA8C]" dir="rtl">השיטה: Unlearning</h2>
+          <div className="grid md:grid-cols-3 gap-12" dir="rtl">
             {[
               { step: "01", title: "שבירת הפחד", desc: "משחררים את הצורך בפרפקציוניזם שמחניק את הדיבור." },
               { step: "02", title: "הקשבה אקטיבית", desc: "צלילה לתוך ה-Soundscape הירושלמי לריכוז מקסימלי." },

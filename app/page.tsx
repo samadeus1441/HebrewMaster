@@ -60,9 +60,11 @@ export default function LandingPage() {
           }}>
             Your Hebrew.<br />
             <span style={{ color: '#1E3A5F' }}>Your lessons.</span><br />
+            {/* Added direction RTL for Hebrew */}
             <span style={{
               fontFamily: '"Frank Ruhl Libre", serif', color: '#CFBA8C',
               fontSize: 'clamp(40px, 7vw, 64px)',
+              direction: 'rtl', display: 'inline-block'
             }}>המילים שלך</span>
           </motion.h1>
 
@@ -140,7 +142,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* The Teacher — Jerusalem Bridge narrative from Gemini */}
+      {/* The Teacher — Jerusalem Bridge narrative */}
       <section style={{
         padding: '80px 24px',
         background: 'linear-gradient(180deg, #FAFAF8 0%, #F5F0E8 100%)',
@@ -149,7 +151,7 @@ export default function LandingPage() {
           <motion.div {...fadeUp}>
             <div style={{
               fontFamily: '"Frank Ruhl Libre", serif', fontSize: 28, color: '#CFBA8C',
-              marginBottom: 16, direction: 'rtl',
+              marginBottom: 16, direction: 'rtl'
             }}>הגשר הירושלמי</div>
             <h2 style={{ fontFamily: '"Fraunces", serif', fontSize: 32, fontWeight: 700, letterSpacing: '-0.02em', marginBottom: 20 }}>
               Your Teacher

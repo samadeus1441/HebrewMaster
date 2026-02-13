@@ -3,12 +3,43 @@
 import { useState, useEffect } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 
+// --- 1. TYPES (Updated for Review) ---
 interface Student {
   id: string
   user_id: string
   student_name: string
   native_language: string
   current_level: string
+}
+
+interface VocabularyItem {
+  front: string
+  back: string
+  transliteration: string
+  category: string
+}
+
+interface DialogueTurn {
+  speaker: string
+  text_he: string
+  text_en: string
+  type?: string
+  options?: any[]
+}
+
+interface ConversationPractice {
+  title: string
+  context: string
+  dialogue: DialogueTurn[]
+}
+
+interface LessonData {
+  lesson_number: number
+  lesson_date: string
+  summary: string
+  vocabulary: VocabularyItem[]
+  conversation_practice?: ConversationPractice
+  analysis: any
 }
 
 interface ImportResult {
@@ -18,25 +49,28 @@ interface ImportResult {
   message: string
 }
 
+// --- 2. EXAMPLE JSON ---
 const EXAMPLE_JSON = `{
   "lesson_number": 1,
   "lesson_date": "${new Date().toISOString().split('T')[0]}",
-  "summary": "Trial lesson. Covered basic greetings and self-introduction...",
+  "summary": "Trial lesson. Covered basic greetings...",
   "vocabulary": [
-    {"front": "שָׁלוֹם", "back": "Hello / Peace", "transliteration": "shalom", "category": "greetings"},
-    {"front": "מַה שְׁלוֹמְךָ", "back": "How are you? (m)", "transliteration": "ma shlomkha", "category": "phrases"}
+    {"front": "שָׁלוֹם", "back": "Hello", "transliteration": "shalom", "category": "greetings"}
   ],
+  "conversation_practice": {
+    "title": "Ordering Coffee",
+    "context": "At Aroma",
+    "dialogue": [
+      {"speaker": "Teacher", "text_he": "מַה בִּשְׁבִילְךָ?", "text_en": "What for you?", "type": "statement"}
+    ]
+  },
   "analysis": {
-    "struggles": ["Gender agreement", "Pronunciation of ח"],
-    "strengths": ["Good ear for vowels", "Quick recall"],
-    "recommendations": ["Drill greeting responses", "Practice ח vs כ minimal pairs"],
-    "talk_ratio": {"student": 35, "teacher": 65},
-    "hebrew_percentage": 20,
-    "notes": "Motivated student, learns through conversation"
+    "struggles": [], "strengths": [], "recommendations": [], "talk_ratio": {"student": 35, "teacher": 65}, "hebrew_percentage": 20, "notes": ""
   }
 }`
 
 export default function AdminPage() {
+  // --- STATE ---
   const [students, setStudents] = useState<Student[]>([])
   const [selectedStudent, setSelectedStudent] = useState<string>('')
   const [jsonInput, setJsonInput] = useState('')
@@ -45,19 +79,26 @@ export default function AdminPage() {
   const [error, setError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<'import' | 'register' | 'history'>('import')
   
+  // Register State
   const [newStudentEmail, setNewStudentEmail] = useState('')
   const [newStudentName, setNewStudentName] = useState('')
   const [newStudentLang, setNewStudentLang] = useState('en')
   const [newStudentGoals, setNewStudentGoals] = useState('')
   const [registerResult, setRegisterResult] = useState<string | null>(null)
 
+  // History State
   const [lessons, setLessons] = useState<any[]>([])
+
+  // --- NEW: Review State (HIDL) ---
+  const [isReviewing, setIsReviewing] = useState(false)
+  const [parsedData, setParsedData] = useState<LessonData | null>(null)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
+  // --- EFFECTS ---
   useEffect(() => {
     loadStudents()
   }, [])
@@ -80,7 +121,10 @@ export default function AdminPage() {
     setLessons(data || [])
   }
 
-  async function handleImport() {
+  // --- HANDLERS ---
+
+  // Step 1: Parse JSON and open Review Mode
+  const handleParseAndReview = () => {
     setError(null)
     setResult(null)
 
@@ -89,13 +133,43 @@ export default function AdminPage() {
       return
     }
 
-    let parsed: any
     try {
-      parsed = JSON.parse(jsonInput)
-    } catch {
-      setError('Invalid JSON. Copy the exact output from Claude.')
-      return
+      const parsed = JSON.parse(jsonInput)
+      // Basic validation
+      if (!parsed.lesson_number) throw new Error("Missing 'lesson_number'")
+      
+      setParsedData(parsed)
+      setIsReviewing(true) // Switch to review UI
+    } catch (e: any) {
+      setError('Invalid JSON. Copy the exact output from Claude. ' + e.message)
     }
+  }
+
+  // Edit Helper: Update Vocabulary
+  const updateVocab = (index: number, field: keyof VocabularyItem, value: string) => {
+    if (!parsedData) return
+    const newVocab = [...parsedData.vocabulary]
+    newVocab[index] = { ...newVocab[index], [field]: value }
+    setParsedData({ ...parsedData, vocabulary: newVocab })
+  }
+
+  // Edit Helper: Update Dialogue
+  const updateDialogue = (index: number, field: keyof DialogueTurn, value: string) => {
+    if (!parsedData || !parsedData.conversation_practice) return
+    const newDialogue = [...parsedData.conversation_practice.dialogue]
+    newDialogue[index] = { ...newDialogue[index], [field]: value }
+    setParsedData({
+      ...parsedData,
+      conversation_practice: {
+        ...parsedData.conversation_practice,
+        dialogue: newDialogue
+      }
+    })
+  }
+
+  // Step 2: Final Import (Sends the EDITED data)
+  async function handleFinalImport() {
+    if (!selectedStudent || !parsedData) return
 
     const student = students.find(s => s.user_id === selectedStudent)
     if (!student) {
@@ -112,11 +186,13 @@ export default function AdminPage() {
         body: JSON.stringify({
           student_user_id: student.user_id,
           student_name: student.student_name,
-          lesson_number: parsed.lesson_number,
-          lesson_date: parsed.lesson_date,
-          summary: parsed.summary,
-          vocabulary: parsed.vocabulary || [],
-          analysis: parsed.analysis || {}
+          // Use the parsedData (which might have been edited by you)
+          lesson_number: parsedData.lesson_number,
+          lesson_date: parsedData.lesson_date,
+          summary: parsedData.summary,
+          vocabulary: parsedData.vocabulary || [],
+          conversation_practice: parsedData.conversation_practice, // Added support for scenarios
+          analysis: parsedData.analysis || {}
         })
       })
 
@@ -125,6 +201,8 @@ export default function AdminPage() {
       if (data.success) {
         setResult(data)
         setJsonInput('')
+        setIsReviewing(false) // Close review mode
+        setParsedData(null)
         loadHistory(student.student_name)
       } else {
         setError(data.error || 'Import failed')
@@ -136,6 +214,7 @@ export default function AdminPage() {
     }
   }
 
+  // Register Logic (Unchanged)
   async function handleRegister() {
     setRegisterResult(null)
     setError(null)
@@ -177,6 +256,7 @@ export default function AdminPage() {
     }
   }
 
+  // --- RENDER ---
   return (
     <div style={{ 
       minHeight: '100vh', 
@@ -260,105 +340,230 @@ export default function AdminPage() {
         {/* IMPORT TAB */}
         {activeTab === 'import' && (
           <div>
-            <div style={{ marginBottom: '24px' }}>
-              <label style={{ 
-                display: 'block', 
-                fontSize: '13px', 
-                fontWeight: 600, 
-                color: '#374151',
-                marginBottom: '8px'
-              }}>
-                Select Student
-              </label>
-              <select
-                value={selectedStudent}
-                onChange={(e) => {
-                  setSelectedStudent(e.target.value)
-                  const s = students.find(s => s.user_id === e.target.value)
-                  if (s) loadHistory(s.student_name)
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px 16px',
-                  background: '#ffffff',
-                  border: '2px solid #d1d5db',
-                  borderRadius: '8px',
-                  color: '#111827',
-                  fontSize: '15px'
-                }}
-              >
-                <option value="">-- Choose student --</option>
-                {students.map(s => (
-                  <option key={s.user_id} value={s.user_id}>
-                    {s.student_name} ({s.native_language})
-                  </option>
-                ))}
-              </select>
-              
-              {students.length === 0 && (
-                <p style={{ fontSize: '13px', color: '#9ca3af', marginTop: '8px' }}>
-                  No students yet. Go to "Add Student" tab first.
-                </p>
-              )}
-            </div>
+            {/* --- PHASE 1: Paste JSON (Only show if NOT reviewing) --- */}
+            {!isReviewing && (
+              <>
+                <div style={{ marginBottom: '24px' }}>
+                  <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#374151', marginBottom: '8px' }}>
+                    Select Student
+                  </label>
+                  <select
+                    value={selectedStudent}
+                    onChange={(e) => {
+                      setSelectedStudent(e.target.value)
+                      const s = students.find(s => s.user_id === e.target.value)
+                      if (s) loadHistory(s.student_name)
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '12px 16px',
+                      background: '#ffffff',
+                      border: '2px solid #d1d5db',
+                      borderRadius: '8px',
+                      color: '#111827',
+                      fontSize: '15px'
+                    }}
+                  >
+                    <option value="">-- Choose student --</option>
+                    {students.map(s => (
+                      <option key={s.user_id} value={s.user_id}>
+                        {s.student_name} ({s.native_language})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
-            <div style={{ marginBottom: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
-                  Paste Lesson JSON
-                </label>
+                <div style={{ marginBottom: '24px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <label style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>
+                      Paste Lesson JSON
+                    </label>
+                    <button
+                      onClick={() => setJsonInput(EXAMPLE_JSON)}
+                      style={{
+                        background: '#f3f4f6',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '6px',
+                        color: '#374151',
+                        padding: '4px 12px',
+                        fontSize: '12px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Load Example
+                    </button>
+                  </div>
+                  <textarea
+                    value={jsonInput}
+                    onChange={(e) => setJsonInput(e.target.value)}
+                    placeholder='Paste JSON from Claude...'
+                    rows={14}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      background: '#f9fafb',
+                      border: '2px solid #d1d5db',
+                      borderRadius: '8px',
+                      color: '#111827',
+                      fontSize: '13px',
+                      fontFamily: "'Courier New', monospace",
+                      lineHeight: '1.5',
+                      resize: 'vertical'
+                    }}
+                  />
+                </div>
+
                 <button
-                  onClick={() => setJsonInput(EXAMPLE_JSON)}
+                  onClick={handleParseAndReview}
+                  disabled={!selectedStudent || !jsonInput}
                   style={{
-                    background: '#f3f4f6',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '6px',
-                    color: '#374151',
-                    padding: '4px 12px',
-                    fontSize: '12px',
-                    cursor: 'pointer'
+                    width: '100%',
+                    padding: '16px',
+                    background: (!selectedStudent || !jsonInput) ? '#e5e7eb' : '#3b82f6',
+                    border: 'none',
+                    borderRadius: '8px',
+                    color: (!selectedStudent || !jsonInput) ? '#9ca3af' : '#ffffff',
+                    fontSize: '16px',
+                    fontWeight: 700,
+                    cursor: (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer'
                   }}
                 >
-                  Load Example
+                  🔍 Review & Validate
                 </button>
-              </div>
-              <textarea
-                value={jsonInput}
-                onChange={(e) => setJsonInput(e.target.value)}
-                placeholder='Paste JSON from Claude...'
-                rows={14}
-                style={{
-                  width: '100%',
-                  padding: '16px',
-                  background: '#f9fafb',
-                  border: '2px solid #d1d5db',
-                  borderRadius: '8px',
-                  color: '#111827',
-                  fontSize: '13px',
-                  fontFamily: "'Courier New', monospace",
-                  lineHeight: '1.5',
-                  resize: 'vertical'
-                }}
-              />
-            </div>
+              </>
+            )}
 
-            <button
-              onClick={handleImport}
-              disabled={loading || !selectedStudent || !jsonInput}
-              style={{
-                width: '100%',
-                padding: '16px',
-                background: (!selectedStudent || !jsonInput) ? '#e5e7eb' : '#10b981',
-                border: 'none',
-                borderRadius: '8px',
-                color: (!selectedStudent || !jsonInput) ? '#9ca3af' : '#ffffff',
-                fontSize: '16px',
-                fontWeight: 700,
-                cursor: (!selectedStudent || !jsonInput) ? 'not-allowed' : 'pointer'
-              }}
-            >
-              {loading ? '⏳ Importing...' : '🚀 Import Lesson'}
-            </button>
+            {/* --- PHASE 2: Review & Edit (Only show if reviewing) --- */}
+            {isReviewing && parsedData && (
+              <div style={{ 
+                animation: 'fadeIn 0.3s',
+                border: '2px solid #3b82f6', 
+                borderRadius: '12px', 
+                padding: '24px',
+                background: '#ffffff'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <h2 style={{ fontSize: '20px', fontWeight: 'bold', margin: 0 }}>
+                    Reviewing: Lesson {parsedData.lesson_number}
+                  </h2>
+                  <button 
+                    onClick={() => setIsReviewing(false)}
+                    style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+
+                {/* Vocabulary Editor */}
+                <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#4b5563' }}>
+                  📚 Vocabulary ({parsedData.vocabulary.length})
+                </h3>
+                <div style={{ overflowX: 'auto', marginBottom: '24px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+                    <thead style={{ background: '#f9fafb', borderBottom: '1px solid #e5e7eb' }}>
+                      <tr>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>Hebrew</th>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>English</th>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>Translit</th>
+                        <th style={{ padding: '10px', textAlign: 'left' }}>Cat</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {parsedData.vocabulary.map((item, idx) => (
+                        <tr key={idx} style={{ borderBottom: '1px solid #f3f4f6' }}>
+                          <td style={{ padding: '5px' }}>
+                            <input 
+                              value={item.front} 
+                              onChange={(e) => updateVocab(idx, 'front', e.target.value)}
+                              dir="rtl"
+                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px' }} 
+                            />
+                          </td>
+                          <td style={{ padding: '5px' }}>
+                             <input 
+                              value={item.back} 
+                              onChange={(e) => updateVocab(idx, 'back', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px' }} 
+                            />
+                          </td>
+                          <td style={{ padding: '5px' }}>
+                             <input 
+                              value={item.transliteration} 
+                              onChange={(e) => updateVocab(idx, 'transliteration', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', color: '#2563eb' }} 
+                            />
+                          </td>
+                           <td style={{ padding: '5px' }}>
+                             <input 
+                              value={item.category} 
+                              onChange={(e) => updateVocab(idx, 'category', e.target.value)}
+                              style={{ width: '100%', padding: '6px', border: '1px solid #e5e7eb', borderRadius: '4px', fontSize: '12px' }} 
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Scenario Editor (If exists) */}
+                {parsedData.conversation_practice && (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '10px', color: '#4b5563' }}>
+                      💬 Scenario: {parsedData.conversation_practice.title}
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      {parsedData.conversation_practice.dialogue.map((turn, idx) => (
+                        <div key={idx} style={{ display: 'flex', gap: '10px', padding: '10px', background: '#f9fafb', borderRadius: '6px', border: '1px solid #e5e7eb' }}>
+                           <div style={{ width: '80px' }}>
+                              <input 
+                                value={turn.speaker}
+                                onChange={(e) => updateDialogue(idx, 'speaker', e.target.value)}
+                                style={{ width: '100%', fontWeight: 'bold', fontSize: '12px', padding: '4px', textAlign: 'center' }}
+                              />
+                           </div>
+                           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                             <input 
+                                value={turn.text_he}
+                                onChange={(e) => updateDialogue(idx, 'text_he', e.target.value)}
+                                dir="rtl"
+                                style={{ width: '100%', fontWeight: 'bold', padding: '5px' }}
+                              />
+                              <input 
+                                value={turn.text_en}
+                                onChange={(e) => updateDialogue(idx, 'text_en', e.target.value)}
+                                style={{ width: '100%', fontSize: '13px', color: '#6b7280', padding: '5px' }}
+                              />
+                           </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div style={{ marginTop: '20px' }}>
+                  <button
+                    onClick={handleFinalImport}
+                    disabled={loading}
+                    style={{
+                      width: '100%',
+                      padding: '16px',
+                      background: '#10b981',
+                      border: 'none',
+                      borderRadius: '8px',
+                      color: '#ffffff',
+                      fontSize: '16px',
+                      fontWeight: 700,
+                      cursor: loading ? 'wait' : 'pointer',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                    }}
+                  >
+                    {loading ? '⏳ Importing...' : '🚀 Confirm & Import Lesson'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

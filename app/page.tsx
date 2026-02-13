@@ -1,15 +1,16 @@
-'use client'
-
 import Link from 'next/link';
-import { Shield, BookOpen, Mic2 } from 'lucide-react';
+import { Shield, BookOpen, Mic2, Star } from 'lucide-react';
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#FDF5E6] text-[#001B4D]">
+    <div className="min-h-screen bg-[#FDF5E6] text-[#1a1a1a] selection:bg-[#CFBA8C] selection:text-[#001B4D]">
       {/* Hero Section: The Bridge */}
       <section className="relative h-screen flex items-center justify-center overflow-hidden border-b border-[#CFBA8C]/30">
+        {/* Subtle Background Texture */}
+        <div className="absolute inset-0 opacity-20 pointer-events-none" 
+             style={{ backgroundImage: `url("https://www.transparenttextures.com/patterns/natural-paper.png")` }}></div>
         
-        {/* Subtle Background Texture - Aura */}
+        {/* The Aura Animation (Uses the CSS from globals.css) */}
         <div className="hm-aura absolute inset-0 pointer-events-none"></div>
 
         <div className="container mx-auto px-6 relative z-10 text-center">
@@ -29,8 +30,8 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/login" 
-              className="px-10 py-5 bg-[#001B4D] text-white rounded-none font-bold text-lg hover:bg-[#002b7a] transition-all shadow-xl">
+            <Link href="/dashboard" 
+              className="px-10 py-5 bg-[#001B4D] text-white rounded-none font-bold text-lg hover:bg-[#002b7a] transition-all transform hover:-translate-y-1 shadow-2xl">
               להתחלת המסע
             </Link>
             <button className="px-10 py-5 border border-[#001B4D] text-[#001B4D] rounded-none font-bold text-lg hover:bg-white/50 transition-all">
@@ -40,8 +41,8 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* The Authority Section */}
-      <section className="py-24 bg-white relative">
+      {/* The Authority: Schlesinger Lineage */}
+      <section className="py-32 bg-white relative">
         <div className="container mx-auto px-6">
           <div className="grid md:grid-cols-2 gap-20 items-center">
             <div className="relative">
@@ -62,7 +63,7 @@ export default function LandingPage() {
                 <span className="text-[#CFBA8C]">דיוק ששורשיו עמוקים.</span>
               </h2>
               <p className="text-lg text-[#4a4a4a] leading-relaxed mb-8">
-                בניגוד לאפליקציות שנבנו על ידי אלגוריתמים, "הגשר הירושלמי" נבנה על תשתית של סמכות היסטורית. השפה שאנחנו מלמדים היא העברית החיה.
+                בניגוד לאפליקציות שנבנו על ידי אלגוריתמים, "הגשר הירושלמי" נבנה על תשתית של סמכות היסטורית. השפה שאנחנו מלמדים היא העברית החיה – זו שמגשרת בין כתבי הקודש לרחוב הישראלי המודרני.
               </p>
               <div className="space-y-6">
                 {[
@@ -84,7 +85,27 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
-      
+
+      {/* The Philosophy: Unlearning */}
+      <section className="py-24 bg-[#001B4D] text-white">
+        <div className="container mx-auto px-6 text-center">
+          <h2 className="text-4xl font-serif mb-16 text-[#CFBA8C]">השיטה: Unlearning</h2>
+          <div className="grid md:grid-cols-3 gap-12">
+            {[
+              { step: "01", title: "שבירת הפחד", desc: "משחררים את הצורך בפרפקציוניזם שמחניק את הדיבור." },
+              { step: "02", title: "הקשבה אקטיבית", desc: "צלילה לתוך ה-Soundscape הירושלמי לריכוז מקסימלי." },
+              { step: "03", title: "בעלות על השפה", desc: "הופכים את העברית לחלק בלתי נפרד מהזהות שלך." }
+            ].map((s, i) => (
+              <div key={i} className="p-8 border border-white/10 bg-white/5 backdrop-blur-sm">
+                <span className="text-xs font-mono text-[#CFBA8C] block mb-4 tracking-widest">{s.step}</span>
+                <h4 className="text-xl font-bold mb-4">{s.title}</h4>
+                <p className="text-white/70 leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="py-12 bg-[#FDF5E6] border-t border-[#CFBA8C]/30 text-center">
         <p className="text-[#001B4D]/60 text-sm font-light uppercase tracking-widest">

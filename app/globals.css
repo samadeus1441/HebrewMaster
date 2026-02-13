@@ -254,3 +254,76 @@ body {
 @media (max-width: 768px) {
   .hm-stat-value { font-size: 22px; }
 }
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Jerusalem Bridge Palette */
+  --hm-blue: #001B4D;      /* Biblical Blue */
+  --hm-stone: #FDF5E6;     /* Old Paper / Stone */
+  --hm-gold: #CFBA8C;      /* Jerusalem Gold */
+  --hm-gold-light: #E5D9BC;
+  --hm-text: #1a1a1a;
+}
+
+@layer base {
+  body {
+    @apply antialiased;
+    font-family: var(--font-assistant), sans-serif;
+    background-color: var(--hm-stone);
+    color: var(--hm-text);
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-serif {
+    font-family: var(--font-frank), serif;
+    font-weight: 700;
+  }
+}
+
+/* The Breathing Aura Animation */
+@keyframes aura-flow {
+  0% { transform: scale(1) translate(0, 0); opacity: 0.15; }
+  33% { transform: scale(1.1) translate(2%, 2%); opacity: 0.25; }
+  66% { transform: scale(0.9) translate(-2%, 1%); opacity: 0.2; }
+  100% { transform: scale(1) translate(0, 0); opacity: 0.15; }
+}
+
+.hm-aura {
+  background: radial-gradient(circle at 50% 50%, var(--hm-gold) 0%, transparent 50%),
+              radial-gradient(circle at 80% 20%, #B0C4DE 0%, transparent 40%);
+  filter: blur(80px);
+  animation: aura-flow 18s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* Custom Selection for Premium Feel */
+::selection {
+  background-color: var(--hm-gold);
+  color: var(--hm-blue);
+}
+
+/* Smooth Transitions for Activation Elements */
+.transition-activation {
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+/* --- תוספות עיצוב עבור דף הבית (Jerusalem Bridge) --- */
+/* הילה נושמת - The Aura */
+.hm-aura {
+  background: 
+    radial-gradient(circle at 15% 50%, rgba(207, 186, 140, 0.15), transparent 25%),
+    radial-gradient(circle at 85% 30%, rgba(0, 27, 77, 0.08), transparent 25%);
+  filter: blur(60px);
+  animation: hmAuraPulse 10s ease-in-out infinite alternate;
+  z-index: 0;
+}
+
+@keyframes hmAuraPulse {
+  0% { opacity: 0.5; transform: scale(1); }
+  100% { opacity: 0.8; transform: scale(1.1); }
+}
+
+/* הגדרת פונטים (אם הם לא נטענים, זה יתפוס פונט סריף ברירת מחדל שנראה דומה) */
+.font-serif {
+  font-family: 'Frank Ruhl Libre', 'David Libre', serif;
+}

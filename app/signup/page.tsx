@@ -9,7 +9,6 @@ export default function SignupPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
@@ -24,13 +23,10 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      // 1. רישום ב-Supabase
+      // 1. רישום ב-Supabase - בגלל שביטלנו אימות מייל בשרת, המשתמש מאושר מיידית
       const { data, error: signupError } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
       });
 
       if (signupError) {
@@ -39,44 +35,21 @@ export default function SignupPage() {
         return;
       }
 
-      // 2. שליחת מייל אימות אמיתי דרך Resend
-      // אנחנו קוראים ל-API שיצרנו קודם
-      const res = await fetch('/api/send-welcome', {
+      // 2. שליחת מייל "ברוך הבא" ברקע (אופציונלי - גם אם ייכשל בגלל Resend, המשתמש לא ייתקע)
+      fetch('/api/send-welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          email, 
-          firstName: email.split('@')[0] 
-        }),
-      });
+        body: JSON.stringify({ email, firstName: email.split('@')[0] }),
+      }).catch(err => console.error('Silent background email failure:', err));
 
-      if (!res.ok) {
-        console.error('Resend failed, but user was created in Supabase');
-      }
-
-      // 3. הצגת הודעת ההצלחה
-      setSuccess(true);
-      setLoading(false);
+      // 3. כניסה מיידית לאתר
+      router.push('/onboarding');
+      
     } catch (err) {
       setError('An error occurred during signup');
       setLoading(false);
     }
   };
-
-  if (success) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-[#001B4D]" dir="ltr">
-        <div className="w-full max-w-md p-8 bg-white rounded-3xl shadow-2xl text-center">
-          <div className="text-5xl mb-4">📧</div>
-          <h1 className="text-2xl font-black text-[#001B4D] mb-2">Check your email</h1>
-          <p className="text-slate-500 mb-6">We've sent a confirmation link to {email}.<br/>Please check your spam folder too.</p>
-          <Link href="/login" className="text-indigo-600 font-bold hover:underline">
-            Back to Login
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="flex h-screen items-center justify-center bg-[#001B4D]" dir="ltr">
@@ -84,7 +57,7 @@ export default function SignupPage() {
         <h1 className="text-3xl font-black text-[#001B4D] mb-2 text-center tracking-tighter uppercase">
           Join Hebrew Master
         </h1>
-        <p className="text-center text-slate-500 mb-6 text-sm">Create your student account</p>
+        <p className="text-center text-slate-500 mb-6 text-sm">Start your journey today</p>
         
         <form onSubmit={handleSignup} className="space-y-4">
           <div>

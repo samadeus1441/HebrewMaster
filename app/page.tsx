@@ -4,33 +4,33 @@ import { BookOpen, Globe, Brain, Users, Sparkles, ChevronRight, Star, Shield } f
 const languages = [
   {
     name: 'Modern Hebrew',
-    nameHe: 'עברית מודרנית',
-    description: 'Speak, read, and think in the language of Israel — from street conversations to business fluency.',
-    icon: '🇮🇱',
+    nameHe: '\u05E2\u05D1\u05E8\u05D9\u05EA \u05DE\u05D5\u05D3\u05E8\u05E0\u05D9\u05EA',
+    description: 'Speak, read, and think in the language of Israel \u2014 from street conversations to business fluency.',
+    icon: '\uD83C\uDDEE\uD83C\uDDF1',
     color: 'from-blue-600 to-blue-800',
     features: ['Conversational fluency', 'Nikud-to-unvocalized transition', 'Business & tech Hebrew'],
   },
   {
     name: 'Biblical Hebrew',
-    nameHe: 'עברית מקראית',
-    description: 'Read Torah, Prophets, and Psalms in the original — with root-based morphology that unlocks thousands of years of wisdom.',
-    icon: '📜',
+    nameHe: '\u05E2\u05D1\u05E8\u05D9\u05EA \u05DE\u05E7\u05E8\u05D0\u05D9\u05EA',
+    description: 'Read Torah, Prophets, and Psalms in the original \u2014 with root-based morphology that unlocks thousands of years of wisdom.',
+    icon: '\uD83D\uDCDC',
     color: 'from-amber-700 to-amber-900',
     features: ['Torah reading fluency', 'Binyanim verb patterns', 'Prayer book (Siddur) mastery'],
   },
   {
     name: 'Yiddish',
-    nameHe: 'ייִדיש',
-    description: 'The language of your grandparents — from heritage recovery to literary fluency across all major dialects.',
-    icon: '🕎',
+    nameHe: '\u05D9\u05D9\u05B4\u05D3\u05D9\u05E9',
+    description: 'The language of your grandparents \u2014 from heritage recovery to literary fluency across all major dialects.',
+    icon: '\uD83D\uDD4E',
     color: 'from-purple-700 to-purple-900',
     features: ['Heritage speaker activation', 'Dialect-aware learning', 'Literature & culture'],
   },
   {
     name: 'Aramaic',
-    nameHe: 'ארמית',
-    description: 'Unlock the Talmud, Zohar, and ancient Near Eastern texts — the lingua franca of 3,000 years.',
-    icon: '🏛️',
+    nameHe: '\u05D0\u05E8\u05DE\u05D9\u05EA',
+    description: 'Unlock the Talmud, Zohar, and ancient Near Eastern texts \u2014 the lingua franca of 3,000 years.',
+    icon: '\uD83C\uDFDB\uFE0F',
     color: 'from-emerald-700 to-emerald-900',
     features: ['Talmudic Aramaic', 'Zohar & Kabbalistic texts', 'Targum reading'],
   },
@@ -38,27 +38,27 @@ const languages = [
 
 const testimonials = [
   { name: 'Ana F.', location: 'France', text: "He explains things in a way that actually makes sense instead of just throwing grammar rules at you. Super patient when I mess up pronunciation.", rating: 5 },
-  { name: 'Nikolay', location: 'Russia', text: "Finally someone who understands that I already know Hebrew passively — Yaacov helped me activate what was locked inside.", rating: 5 },
-  { name: 'Jean-Noël', location: 'France', text: "The bridge from my Siddur Hebrew to actually understanding what I'm reading was exactly what I needed. Brilliant teacher.", rating: 5 },
+  { name: 'Nikolay', location: 'Russia', text: "Finally someone who understands that I already know Hebrew passively \u2014 Yaacov helped me activate what was locked inside.", rating: 5 },
+  { name: 'Jean-No\u00EBl', location: 'France', text: "The bridge from my Siddur Hebrew to actually understanding what I'm reading was exactly what I needed. Brilliant teacher.", rating: 5 },
 ];
 
 const features = [
   { icon: Brain, title: 'Root-Based Learning', desc: 'Master 3-letter roots and watch thousands of words unlock across all Semitic languages.' },
   { icon: BookOpen, title: 'Nikud Scaffold', desc: 'Transition from voweled to unvocalized text at your own pace with our interactive vowel toggle.' },
-  { icon: Sparkles, title: 'AI-Powered Reviews', desc: 'Flashcards generated from YOUR actual lessons — not generic word lists.' },
+  { icon: Sparkles, title: 'AI-Powered Reviews', desc: 'Flashcards generated from YOUR actual lessons \u2014 not generic word lists.' },
   { icon: Users, title: 'Live + Async', desc: 'Personal tutoring sessions paired with a practice platform that works between lessons.' },
-  { icon: Globe, title: 'Every Dialect', desc: 'Ashkenazi, Sephardi, Mizrachi, Lithuanian Yiddish, Hungarian Yiddish — learn YOUR tradition.' },
+  { icon: Globe, title: 'Every Dialect', desc: 'Ashkenazi, Sephardi, Mizrachi, Lithuanian Yiddish, Hungarian Yiddish \u2014 learn YOUR tradition.' },
   { icon: Shield, title: 'Jerusalem Authentic', desc: 'Built by a native Jerusalemite from the Schlesinger rabbinical lineage. No generic content.' },
 ];
 
 export default function LandingPage() {
   return (
-    <div className="min-h-screen bg-[#FAFAF8] text-[#1a1a1a] selection:bg-[#CFBA8C]/40 selection:text-[#001B4D]">
+    <div className="min-h-screen bg-[#FAFAF8] text-[#1a1a1a] selection:bg-[#CFBA8C]/40 selection:text-[#001B4D]" dir="ltr">
       {/* Nav */}
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-[#e5e2db]">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <span className="text-2xl">🇮🇱</span>
+            <span className="text-2xl">{'\uD83C\uDDEE\uD83C\uDDF1'}</span>
             <span className="font-serif text-xl font-bold text-[#001B4D]">The Jerusalem Bridge</span>
           </Link>
           <div className="hidden md:flex items-center gap-8 text-sm">
@@ -81,14 +81,14 @@ export default function LandingPage() {
         <div className="absolute inset-0 opacity-[0.07] pointer-events-none"
              style={{ backgroundImage: `url("https://www.transparenttextures.com/patterns/natural-paper.png")` }} />
         
-        {/* Decorative Hebrew letters */}
-        <div className="absolute top-20 left-10 text-[20rem] font-serif text-[#CFBA8C]/[0.06] select-none leading-none pointer-events-none" dir="rtl">א</div>
-        <div className="absolute bottom-10 right-10 text-[16rem] font-serif text-[#001B4D]/[0.04] select-none leading-none pointer-events-none" dir="rtl">ש</div>
+        {/* Decorative Hebrew letters — isolated from text flow */}
+        <div className="absolute top-20 left-10 text-[20rem] font-serif text-[#CFBA8C]/[0.06] select-none leading-none pointer-events-none" aria-hidden="true">{'\u05D0'}</div>
+        <div className="absolute bottom-10 right-10 text-[16rem] font-serif text-[#001B4D]/[0.04] select-none leading-none pointer-events-none" aria-hidden="true">{'\u05E9'}</div>
 
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center py-20" dir="ltr">
+        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center py-20">
           <div className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#001B4D]/15 bg-white/60 backdrop-blur-sm">
-            <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse-soft" />
-            <span className="text-xs font-semibold tracking-wider uppercase text-[#001B4D]">4 Languages • 1 Platform</span>
+            <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse" />
+            <span className="text-xs font-semibold tracking-wider uppercase text-[#001B4D]">4 Languages &middot; 1 Platform</span>
           </div>
           
           <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif mb-8 text-[#001B4D] leading-[1.1] text-center">
@@ -119,25 +119,26 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-serif text-[#001B4D] mb-4">Four Languages, One Home</h2>
             <p className="text-lg text-[#4a4a4a] max-w-2xl mx-auto">
-              The only platform that bridges Modern Hebrew, Biblical Hebrew, Yiddish, and Aramaic — with shared roots connecting them all.
+              The only platform that bridges Modern Hebrew, Biblical Hebrew, Yiddish, and Aramaic &mdash; with shared roots connecting them all.
             </p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-6">
             {languages.map((lang) => (
               <div key={lang.name} className="group relative bg-[#FAFAF8] border border-[#e5e2db] p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-start gap-4 mb-6" dir="ltr">
+                <div className="flex items-start gap-4 mb-6">
                   <span className="text-4xl">{lang.icon}</span>
-                  <div className="text-left">
+                  <div>
                     <h3 className="text-2xl font-serif text-[#001B4D] mb-1">{lang.name}</h3>
-                    <p className="text-xl font-hebrew text-[#CFBA8C]" dir="rtl">{lang.nameHe}</p>
+                    {/* bdi isolates the RTL Hebrew text so it doesn't affect surrounding LTR punctuation */}
+                    <p className="text-xl font-hebrew text-[#CFBA8C]"><bdi>{lang.nameHe}</bdi></p>
                   </div>
                 </div>
-                <p className="text-[#4a4a4a] mb-6 leading-relaxed text-left" dir="ltr">{lang.description}</p>
-                <ul className="space-y-2" dir="ltr">
+                <p className="text-[#4a4a4a] mb-6 leading-relaxed">{lang.description}</p>
+                <ul className="space-y-2">
                   {lang.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-[#001B4D] text-left">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#9BAB16] shrink-0" />
+                    <li key={f} className="flex items-center gap-3 text-sm text-[#001B4D]">
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="none" className="shrink-0"><circle cx="4" cy="4" r="3" fill="#9BAB16"/></svg>
                       <span>{f}</span>
                     </li>
                   ))}
@@ -158,9 +159,9 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8" dir="ltr">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((f) => (
-              <div key={f.title} className="bg-white border border-[#e5e2db] p-8 text-left">
+              <div key={f.title} className="bg-white border border-[#e5e2db] p-8">
                 <f.icon className="w-8 h-8 text-[#001B4D] mb-4" strokeWidth={1.5} />
                 <h3 className="text-lg font-bold text-[#001B4D] mb-2">{f.title}</h3>
                 <p className="text-[#4a4a4a] text-sm leading-relaxed">{f.desc}</p>
@@ -174,19 +175,19 @@ export default function LandingPage() {
       <section className="py-24 bg-[#001B4D] text-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-serif mb-6">The Vowel Bridge</h2>
-          <p className="text-lg text-white/70 mb-12 max-w-2xl mx-auto" dir="ltr">
+          <p className="text-lg text-white/70 mb-12 max-w-2xl mx-auto">
             The #1 struggle for Hebrew learners: transitioning from voweled textbook Hebrew to real-world unvocalized text. 
             Our interactive Nikud Toggle takes you there step by step.
           </p>
           
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 md:p-12 rounded-lg" dir="ltr">
-            <div className="text-4xl md:text-5xl font-hebrew leading-loose mb-8 flex items-center justify-center gap-4">
-              <span className="text-[#CFBA8C]" dir="rtl">בְּרֵאשִׁית</span>
-              <span className="text-white/30">→</span>
-              <span className="text-white" dir="rtl">בראשית</span>
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 md:p-12 rounded-lg">
+            <div className="text-4xl md:text-5xl font-hebrew leading-loose mb-8 flex items-center justify-center gap-4 flex-wrap">
+              <bdi className="text-[#CFBA8C]">{'\u05D1\u05B0\u05BC\u05E8\u05B5\u05D0\u05E9\u05C1\u05B4\u05D9\u05EA'}</bdi>
+              <span className="text-white/30">{'\u2192'}</span>
+              <bdi className="text-white">{'\u05D1\u05E8\u05D0\u05E9\u05D9\u05EA'}</bdi>
             </div>
             <p className="text-white/60 text-sm text-center">
-              From fully voweled → scaffolded → independent reading. At your own pace.
+              From fully voweled &rarr; scaffolded &rarr; independent reading. At your own pace.
             </p>
           </div>
 
@@ -202,15 +203,15 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-serif text-[#001B4D] mb-4">What Students Say</h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-8" dir="ltr">
+          <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((t) => (
-              <div key={t.name} className="bg-[#FAFAF8] border border-[#e5e2db] p-8 text-left">
-                <div className="flex gap-1 mb-4 justify-start">
+              <div key={t.name} className="bg-[#FAFAF8] border border-[#e5e2db] p-8">
+                <div className="flex gap-1 mb-4">
                   {Array.from({ length: t.rating }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-[#9BAB16] text-[#9BAB16]" />
                   ))}
                 </div>
-                <p className="text-[#4a4a4a] text-sm leading-relaxed mb-6 italic">"{t.text}"</p>
+                <p className="text-[#4a4a4a] text-sm leading-relaxed mb-6 italic">&ldquo;{t.text}&rdquo;</p>
                 <div className="text-sm">
                   <p className="font-semibold text-[#001B4D]">{t.name}</p>
                   <p className="text-[#6b7280]">{t.location}</p>
@@ -223,7 +224,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="py-24 bg-[#F5F0E8]">
-        <div className="max-w-3xl mx-auto px-6 text-center" dir="ltr">
+        <div className="max-w-3xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-serif text-[#001B4D] mb-6">
             Ready to cross the bridge?
           </h2>
@@ -239,9 +240,9 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="py-12 bg-[#001B4D] text-white/60">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6" dir="ltr">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
             <div className="flex items-center gap-2">
-              <span className="text-xl">🇮🇱</span>
+              <span className="text-xl">{'\uD83C\uDDEE\uD83C\uDDF1'}</span>
               <span className="font-serif text-lg text-white">The Jerusalem Bridge</span>
             </div>
             <div className="flex gap-8 text-sm">

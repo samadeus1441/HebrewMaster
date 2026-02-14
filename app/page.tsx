@@ -126,19 +126,19 @@ export default function LandingPage() {
           <div className="grid md:grid-cols-2 gap-6">
             {languages.map((lang) => (
               <div key={lang.name} className="group relative bg-[#FAFAF8] border border-[#e5e2db] p-8 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
-                <div className="flex items-start gap-4 mb-6">
+                <div className="flex items-start gap-4 mb-6" dir="ltr">
                   <span className="text-4xl">{lang.icon}</span>
-                  <div>
+                  <div className="text-left">
                     <h3 className="text-2xl font-serif text-[#001B4D] mb-1">{lang.name}</h3>
                     <p className="text-xl font-hebrew text-[#CFBA8C]" dir="rtl">{lang.nameHe}</p>
                   </div>
                 </div>
-                <p className="text-[#4a4a4a] mb-6 leading-relaxed">{lang.description}</p>
-                <ul className="space-y-2">
+                <p className="text-[#4a4a4a] mb-6 leading-relaxed text-left">{lang.description}</p>
+                <ul className="space-y-2" dir="ltr">
                   {lang.features.map((f) => (
-                    <li key={f} className="flex items-center gap-2 text-sm text-[#001B4D]">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#9BAB16]" />
-                      {f}
+                    <li key={f} className="flex items-center gap-2 text-sm text-[#001B4D] text-left">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#9BAB16] shrink-0" />
+                      <span>{f}</span>
                     </li>
                   ))}
                 </ul>
@@ -160,7 +160,7 @@ export default function LandingPage() {
 
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((f) => (
-              <div key={f.title} className="bg-white border border-[#e5e2db] p-8">
+              <div key={f.title} className="bg-white border border-[#e5e2db] p-8 text-left">
                 <f.icon className="w-8 h-8 text-[#001B4D] mb-4" strokeWidth={1.5} />
                 <h3 className="text-lg font-bold text-[#001B4D] mb-2">{f.title}</h3>
                 <p className="text-[#4a4a4a] text-sm leading-relaxed">{f.desc}</p>
@@ -182,7 +182,7 @@ export default function LandingPage() {
           <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 md:p-12 rounded-lg">
             <div className="text-4xl md:text-5xl font-hebrew leading-loose mb-8" dir="rtl">
               <span className="text-[#CFBA8C]">בְּרֵאשִׁית</span>
-              <span className="mx-4 text-white/30">→</span>
+              <span className="mx-4 text-white/30" dir="ltr">→</span>
               <span className="text-white">בראשית</span>
             </div>
             <p className="text-white/60 text-sm">
@@ -204,8 +204,8 @@ export default function LandingPage() {
           </div>
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((t) => (
-              <div key={t.name} className="bg-[#FAFAF8] border border-[#e5e2db] p-8">
-                <div className="flex gap-1 mb-4">
+              <div key={t.name} className="bg-[#FAFAF8] border border-[#e5e2db] p-8 text-left">
+                <div className="flex gap-1 mb-4 justify-start">
                   {Array.from({ length: t.rating }).map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-[#9BAB16] text-[#9BAB16]" />
                   ))}

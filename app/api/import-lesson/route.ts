@@ -1,7 +1,11 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
 
-// Use service role key for admin operations
+// Initialize Resend
+const resend = new Resend(process.env.RESEND_API_KEY)
+
+// Initialize Supabase with Service Role (Admin)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -14,6 +18,7 @@ export async function POST(req: NextRequest) {
     const {
       student_user_id,
       student_name,
+      student_email, // <--- Added this so we know who to email
       lesson_number,
       lesson_date,
       topic_title,
@@ -45,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     if (lessonError) throw lessonError
 
-    // 3. Update lesson with expanded fields (topic_title, grammar, cultural notes, homework)
+    // 3. Update lesson with expanded fields
     if (lessonId) {
       const updatePayload: Record<string, any> = {}
       if (topic_title) updatePayload.topic_title = topic_title
@@ -72,26 +77,55 @@ export async function POST(req: NextRequest) {
         })
 
       if (!scenarioError) scenariosCreated++
-      else console.error('Main scenario import error:', scenarioError)
     }
 
     // 5. Import Additional Scenarios
     if (additional_scenarios && additional_scenarios.length > 0) {
       for (const scenario of additional_scenarios) {
         if (scenario.dialogue && scenario.dialogue.length > 0) {
-          const { error: extraError } = await supabase
-            .from('conversation_scenarios')
-            .insert({
-              student_id: student_user_id,
-              lesson_id: lessonId,
-              title: scenario.title || `Extra Scenario Lesson ${lesson_number}`,
-              context: scenario.context || '',
-              dialogue: scenario.dialogue
-            })
-
-          if (!extraError) scenariosCreated++
-          else console.error('Additional scenario import error:', extraError)
+          await supabase.from('conversation_scenarios').insert({
+            student_id: student_user_id,
+            lesson_id: lessonId,
+            title: scenario.title || `Extra Scenario Lesson ${lesson_number}`,
+            context: scenario.context || '',
+            dialogue: scenario.dialogue
+          })
+          scenariosCreated++
         }
+      }
+    }
+
+    // --- EMAIL NOTIFICATION LOGIC ---
+    let emailStatus = 'skipped'
+    
+    // Only attempt to send if we have an email address
+    if (student_email) {
+      try {
+        await resend.emails.send({
+          // IMPORTANT: Until you verify your domain in Resend, use 'onboarding@resend.dev'
+          // Once verified, change this to: 'Yaacov <coach@yourdomain.com>'
+          from: 'onboarding@resend.dev', 
+          to: student_email,
+          subject: `Lesson Ready: ${topic_title || 'Hebrew Practice'} ⚽`,
+          html: `
+            <div style="font-family: sans-serif; color: #333;">
+              <h1>Hey ${student_name}!</h1>
+              <p>Your summary for <strong>Lesson ${lesson_number}</strong> is ready.</p>
+              <p>I've updated your dashboard with the new vocabulary and missions we discussed.</p>
+              <br/>
+              <a href="https://hebrew-master-delta.vercel.app/dashboard" 
+                 style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                 Go to Dashboard
+              </a>
+              <br/><br/>
+              <p>See you next time,<br/>Yaacov</p>
+            </div>
+          `
+        })
+        emailStatus = 'sent'
+      } catch (emailError) {
+        console.error('Resend Error:', emailError)
+        emailStatus = 'failed'
       }
     }
 
@@ -100,7 +134,8 @@ export async function POST(req: NextRequest) {
       lesson_id: lessonId,
       cards_created: vocabulary?.length || 0,
       scenarios_created: scenariosCreated,
-      message: `Lesson ${lesson_number} imported. ${vocabulary?.length || 0} words, ${scenariosCreated} scenarios, ${grammar_points?.length || 0} grammar points.`
+      email_status: emailStatus,
+      message: `Lesson imported successfully. Email: ${emailStatus}`
     })
 
   } catch (err: any) {
@@ -115,7 +150,7 @@ export async function GET() {
       .from('student_profiles')
       .select('id, user_id, student_name, native_language, current_level, created_at')
       .order('student_name')
-
+    
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ students: data || [] })
   } catch (err: any) {

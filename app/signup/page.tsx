@@ -23,7 +23,8 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      // 1. רישום ב-Supabase - בגלל שביטלנו אימות מייל בשרת, המשתמש מאושר מיידית
+      // 1. רישום ב-Supabase
+      // (בגלל שביטלנו אימות מייל בשרת, המשתמש נוצר ומאושר מיד)
       const { data, error: signupError } = await supabase.auth.signUp({
         email,
         password,
@@ -35,14 +36,16 @@ export default function SignupPage() {
         return;
       }
 
-      // 2. שליחת מייל "ברוך הבא" ברקע (אופציונלי - גם אם ייכשל בגלל Resend, המשתמש לא ייתקע)
+      // 2. ניסיון שליחת מייל "ברוך הבא" ברקע
+      // אנחנו לא מחכים לתשובה (await) ולא בודקים שגיאות, כדי לא לעצור את המשתמש
       fetch('/api/send-welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, firstName: email.split('@')[0] }),
-      }).catch(err => console.error('Silent background email failure:', err));
+      }).catch(err => console.error('Background email failed silently:', err));
 
-      // 3. כניסה מיידית לאתר
+      // 3. כניסה מיידית לאתר!
+      // אין מסך "Check your email", המשתמש פשוט נכנס לעבוד.
       router.push('/onboarding');
       
     } catch (err) {

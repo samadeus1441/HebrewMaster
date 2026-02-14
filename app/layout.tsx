@@ -1,6 +1,6 @@
 import './globals.css';
 import { Assistant, Frank_Ruhl_Libre } from 'next/font/google';
-import { LanguageProvider } from '@/context/LanguageContext'; // או הנתיב הנכון אצלך
+import { LanguageProvider } from './context/LanguageContext';
 
 // הפונט המודרני והנקי לעברית
 const assistant = Assistant({ 
@@ -27,7 +27,6 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    // תיקון: שיניתי לאנגלית ולשמאל-לימין
     <html lang="en" dir="ltr" className={`${assistant.variable} ${frankRuhl.variable}`}>
       <body className="font-sans antialiased">
         <LanguageProvider>
@@ -37,4 +36,4 @@ export default function RootLayout({
     </html>
   );
 }
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';

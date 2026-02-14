@@ -24,7 +24,8 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      const { error: signupError } = await supabase.auth.signUp({
+      // 1. רישום ב-Supabase
+      const { data, error: signupError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -35,10 +36,27 @@ export default function SignupPage() {
       if (signupError) {
         setError(signupError.message);
         setLoading(false);
-      } else {
-        setSuccess(true);
-        setLoading(false);
+        return;
       }
+
+      // 2. שליחת מייל אימות אמיתי דרך Resend
+      // אנחנו קוראים ל-API שיצרנו קודם
+      const res = await fetch('/api/send-welcome', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email, 
+          firstName: email.split('@')[0] 
+        }),
+      });
+
+      if (!res.ok) {
+        console.error('Resend failed, but user was created in Supabase');
+      }
+
+      // 3. הצגת הודעת ההצלחה
+      setSuccess(true);
+      setLoading(false);
     } catch (err) {
       setError('An error occurred during signup');
       setLoading(false);
@@ -47,11 +65,11 @@ export default function SignupPage() {
 
   if (success) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-900" dir="ltr">
+      <div className="flex h-screen items-center justify-center bg-[#001B4D]" dir="ltr">
         <div className="w-full max-w-md p-8 bg-white rounded-3xl shadow-2xl text-center">
           <div className="text-5xl mb-4">📧</div>
-          <h1 className="text-2xl font-black text-slate-900 mb-2">Check your email</h1>
-          <p className="text-slate-500 mb-6">We've sent a confirmation link to {email}.</p>
+          <h1 className="text-2xl font-black text-[#001B4D] mb-2">Check your email</h1>
+          <p className="text-slate-500 mb-6">We've sent a confirmation link to {email}.<br/>Please check your spam folder too.</p>
           <Link href="/login" className="text-indigo-600 font-bold hover:underline">
             Back to Login
           </Link>
@@ -61,10 +79,10 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="flex h-screen items-center justify-center bg-slate-900" dir="ltr">
+    <div className="flex h-screen items-center justify-center bg-[#001B4D]" dir="ltr">
       <div className="w-full max-w-md p-8 bg-white rounded-3xl shadow-2xl">
-        <h1 className="text-3xl font-black text-slate-900 mb-2 text-center tracking-tighter">
-          JOIN HEBREW MASTER
+        <h1 className="text-3xl font-black text-[#001B4D] mb-2 text-center tracking-tighter uppercase">
+          Join Hebrew Master
         </h1>
         <p className="text-center text-slate-500 mb-6 text-sm">Create your student account</p>
         
@@ -73,7 +91,7 @@ export default function SignupPage() {
             <label className="block text-sm font-bold text-slate-700 mb-1">Email</label>
             <input 
               type="email" 
-              className="w-full p-3 border border-slate-200 rounded-xl outline-none text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 border border-slate-200 rounded-xl outline-none text-slate-900 focus:ring-2 focus:ring-[#9BAB16]"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -84,7 +102,7 @@ export default function SignupPage() {
             <label className="block text-sm font-bold text-slate-700 mb-1">Password</label>
             <input 
               type="password" 
-              className="w-full p-3 border border-slate-200 rounded-xl outline-none text-slate-900 focus:ring-2 focus:ring-indigo-500"
+              className="w-full p-3 border border-slate-200 rounded-xl outline-none text-slate-900 focus:ring-2 focus:ring-[#9BAB16]"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -100,7 +118,7 @@ export default function SignupPage() {
 
           <button 
             disabled={loading}
-            className="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-lg shadow-indigo-200"
+            className="w-full bg-[#001B4D] text-white p-4 rounded-xl font-bold hover:bg-[#002b7a] disabled:opacity-50 transition-all shadow-lg shadow-blue-200"
           >
             {loading ? 'Creating account...' : 'Create Account'}
           </button>

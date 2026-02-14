@@ -85,18 +85,18 @@ export default function LandingPage() {
         <div className="absolute top-20 left-10 text-[20rem] font-serif text-[#CFBA8C]/[0.06] select-none leading-none pointer-events-none" dir="rtl">א</div>
         <div className="absolute bottom-10 right-10 text-[16rem] font-serif text-[#001B4D]/[0.04] select-none leading-none pointer-events-none" dir="rtl">ש</div>
 
-        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center py-20">
+        <div className="relative z-10 max-w-5xl mx-auto px-6 text-center py-20" dir="ltr">
           <div className="mb-8 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border border-[#001B4D]/15 bg-white/60 backdrop-blur-sm">
             <span className="w-2 h-2 rounded-full bg-[#059669] animate-pulse-soft" />
             <span className="text-xs font-semibold tracking-wider uppercase text-[#001B4D]">4 Languages • 1 Platform</span>
           </div>
           
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif mb-8 text-[#001B4D] leading-[1.1]">
+          <h1 className="text-5xl md:text-7xl lg:text-8xl font-serif mb-8 text-[#001B4D] leading-[1.1] text-center">
             The ancient languages,<br />
             <span className="italic text-[#CFBA8C]">alive again.</span>
           </h1>
           
-          <p className="max-w-2xl mx-auto text-lg md:text-xl text-[#4a4a4a] leading-relaxed mb-12">
+          <p className="max-w-2xl mx-auto text-lg md:text-xl text-[#4a4a4a] leading-relaxed mb-12 text-center">
             Hebrew. Yiddish. Aramaic. Biblical Hebrew.<br className="hidden sm:block" />
             One platform built by a native Jerusalemite for serious learners who want more than a game.
           </p>
@@ -133,7 +133,7 @@ export default function LandingPage() {
                     <p className="text-xl font-hebrew text-[#CFBA8C]" dir="rtl">{lang.nameHe}</p>
                   </div>
                 </div>
-                <p className="text-[#4a4a4a] mb-6 leading-relaxed text-left">{lang.description}</p>
+                <p className="text-[#4a4a4a] mb-6 leading-relaxed text-left" dir="ltr">{lang.description}</p>
                 <ul className="space-y-2" dir="ltr">
                   {lang.features.map((f) => (
                     <li key={f} className="flex items-center gap-2 text-sm text-[#001B4D] text-left">
@@ -158,7 +158,7 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8" dir="ltr">
             {features.map((f) => (
               <div key={f.title} className="bg-white border border-[#e5e2db] p-8 text-left">
                 <f.icon className="w-8 h-8 text-[#001B4D] mb-4" strokeWidth={1.5} />
@@ -174,18 +174,18 @@ export default function LandingPage() {
       <section className="py-24 bg-[#001B4D] text-white">
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl md:text-5xl font-serif mb-6">The Vowel Bridge</h2>
-          <p className="text-lg text-white/70 mb-12 max-w-2xl mx-auto">
+          <p className="text-lg text-white/70 mb-12 max-w-2xl mx-auto" dir="ltr">
             The #1 struggle for Hebrew learners: transitioning from voweled textbook Hebrew to real-world unvocalized text. 
             Our interactive Nikud Toggle takes you there step by step.
           </p>
           
-          <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 md:p-12 rounded-lg">
-            <div className="text-4xl md:text-5xl font-hebrew leading-loose mb-8" dir="rtl">
-              <span className="text-[#CFBA8C]">בְּרֵאשִׁית</span>
-              <span className="mx-4 text-white/30" dir="ltr">→</span>
-              <span className="text-white">בראשית</span>
+          <div className="bg-white/10 backdrop-blur-sm border border-white/20 p-8 md:p-12 rounded-lg" dir="ltr">
+            <div className="text-4xl md:text-5xl font-hebrew leading-loose mb-8 flex items-center justify-center gap-4">
+              <span className="text-[#CFBA8C]" dir="rtl">בְּרֵאשִׁית</span>
+              <span className="text-white/30">→</span>
+              <span className="text-white" dir="rtl">בראשית</span>
             </div>
-            <p className="text-white/60 text-sm">
+            <p className="text-white/60 text-sm text-center">
               From fully voweled → scaffolded → independent reading. At your own pace.
             </p>
           </div>
@@ -202,7 +202,7 @@ export default function LandingPage() {
           <div className="text-center mb-16">
             <h2 className="text-4xl md:text-5xl font-serif text-[#001B4D] mb-4">What Students Say</h2>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8" dir="ltr">
             {testimonials.map((t) => (
               <div key={t.name} className="bg-[#FAFAF8] border border-[#e5e2db] p-8 text-left">
                 <div className="flex gap-1 mb-4 justify-start">
@@ -223,7 +223,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="py-24 bg-[#F5F0E8]">
-        <div className="max-w-3xl mx-auto px-6 text-center">
+        <div className="max-w-3xl mx-auto px-6 text-center" dir="ltr">
           <h2 className="text-4xl md:text-5xl font-serif text-[#001B4D] mb-6">
             Ready to cross the bridge?
           </h2>
@@ -239,7 +239,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="py-12 bg-[#001B4D] text-white/60">
         <div className="max-w-6xl mx-auto px-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-6" dir="ltr">
             <div className="flex items-center gap-2">
               <span className="text-xl">🇮🇱</span>
               <span className="font-serif text-lg text-white">The Jerusalem Bridge</span>

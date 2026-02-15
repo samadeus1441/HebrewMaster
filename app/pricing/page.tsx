@@ -152,6 +152,12 @@ export default function PricingPage() {
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-[#1a1a1a]" dir="ltr">
       {/* Nav */}
+      {/* Add this at the very top of the page content, after the nav */}
+<div style={{background:'#FFF7ED',borderBottom:'1px solid #FDBA74',padding:'12px',textAlign:'center'}}>
+  <p style={{fontSize:'14px',color:'#9A3412',margin:0,fontWeight:600}}>
+    🚧 Pricing is coming soon — currently in free beta for early students
+  </p>
+</div>
       <nav className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-[#e5e2db]">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">

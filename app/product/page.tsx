@@ -101,7 +101,7 @@ const featureSections = [
       {
         icon: Languages,
         name: 'Color-Coded Vocabulary',
-        desc: 'Words you know are green. Words you're learning are yellow. Unknown words are red. See your progress on every page.',
+        desc: "Words you're learning are yellow. Unknown words are red. See your progress on every page.",
       },
     ],
     screenshotAlt: 'Screenshot of the Nikud Toggle reader',

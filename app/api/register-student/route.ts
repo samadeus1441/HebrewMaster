@@ -1,14 +1,35 @@
+// app/api/register-student/route.ts
+// ═══════════════════════════════════════════════════════════
+// REGISTER STUDENT — Creates Supabase auth + profile + sends welcome email
+// Called from Admin page when Jack registers a new student
+// ═══════════════════════════════════════════════════════════
+
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { Resend } from 'resend'
+import { welcomeEmail } from '@/lib/emails'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
+// Resend setup — will gracefully skip if no API key
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null
+
+// Use custom domain if verified, otherwise fallback to Resend default
+const FROM_EMAIL = process.env.EMAIL_FROM || 'Jacob from The Jerusalem Bridge <onboarding@resend.dev>'
+
 export async function POST(req: NextRequest) {
   try {
-    const { email, student_name, native_language, learning_goals } = await req.json()
+    const { 
+      email, 
+      student_name, 
+      native_language, 
+      learning_goals,
+      target_language,  // 'Modern Hebrew' | 'Biblical Hebrew' | 'Yiddish' | 'Aramaic'
+      send_welcome_email  // boolean — default true
+    } = await req.json()
 
     if (!email || !student_name) {
       return NextResponse.json(
@@ -17,42 +38,46 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Step 1: Create auth user with temporary password
-    // Student will need to reset password or you send them a magic link
-    const tempPassword = `Hebrew2026_${Math.random().toString(36).slice(2, 10)}`
+    const language = target_language || 'Modern Hebrew'
+    const shouldSendEmail = send_welcome_email !== false // default true
     
+    // ── Step 1: Create auth user ──
+    const tempPassword = `Lashon2026_${Math.random().toString(36).slice(2, 10)}`
+    
+    let userId: string
+
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email: email,
       password: tempPassword,
-      email_confirm: true // Skip email verification
+      email_confirm: true
     })
 
     if (authError) {
-      // If user already exists, try to find them
+      // User already exists — find and link
       if (authError.message.includes('already') || authError.message.includes('exists')) {
         const { data: { users } } = await supabase.auth.admin.listUsers()
         const existingUser = users?.find(u => u.email === email)
         
         if (existingUser) {
-          // User exists - just create the profile
-          const { error: profileError } = await supabase
+          userId = existingUser.id
+          
+          await supabase
             .from('student_profiles')
             .upsert({
               user_id: existingUser.id,
               student_name,
               native_language: native_language || 'en',
               learning_goals: learning_goals || '',
+              target_language: language,
               current_level: 'beginner'
             }, { onConflict: 'user_id' })
-
-          if (profileError) {
-            return NextResponse.json({ error: profileError.message }, { status: 500 })
-          }
 
           return NextResponse.json({
             success: true,
             message: `Linked existing user ${email} to student profile ${student_name}`,
-            user_id: existingUser.id
+            user_id: existingUser.id,
+            email_sent: false,
+            note: 'User already existed — no welcome email sent. Use Send Welcome Email button if needed.'
           })
         }
       }
@@ -60,9 +85,9 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: authError.message }, { status: 500 })
     }
 
-    // Step 2: Create student profile
-    const userId = authData.user.id
-    
+    userId = authData.user.id
+
+    // ── Step 2: Create student profile ──
     const { error: profileError } = await supabase
       .from('student_profiles')
       .insert({
@@ -70,19 +95,20 @@ export async function POST(req: NextRequest) {
         student_name,
         native_language: native_language || 'en',
         learning_goals: learning_goals || '',
+        target_language: language,
         current_level: 'beginner'
       })
 
     if (profileError) {
-      return NextResponse.json({ error: profileError.message }, { status: 500 })
+      console.error('Profile creation error:', profileError)
+      // Don't fail — user was created, profile can be retried
     }
 
-    // Step 3: Create initial profile entry (for XP tracking)
+    // ── Step 3: Create profile + stats entries ──
     await supabase
       .from('profiles')
       .upsert({ id: userId, xp: 0 }, { onConflict: 'id' })
 
-    // Step 4: Create user_stats entry
     await supabase
       .from('user_stats')
       .upsert({ 
@@ -92,11 +118,54 @@ export async function POST(req: NextRequest) {
         words_learned: 0 
       }, { onConflict: 'user_id' })
 
+    // ── Step 4: Send welcome email ──
+    let emailSent = false
+    let emailError = null
+
+    if (shouldSendEmail && resend) {
+      try {
+        const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://lashon.online'
+        const dashboardUrl = `${siteUrl}/dashboard`
+
+        const { subject, html } = welcomeEmail({
+          studentName: student_name,
+          email,
+          tempPassword,
+          language,
+          dashboardUrl,
+        })
+
+        const { data, error } = await resend.emails.send({
+          from: FROM_EMAIL,
+          to: [email],
+          subject,
+          html,
+        })
+
+        if (error) {
+          emailError = error
+          console.error('Welcome email error:', error)
+        } else {
+          emailSent = true
+        }
+      } catch (e: any) {
+        emailError = e.message
+        console.error('Email send failed:', e)
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      message: `Student ${student_name} created. Temp password: ${tempPassword}`,
+      message: `Student ${student_name} registered successfully!`,
       user_id: userId,
-      temp_password: tempPassword // Show this once so Jack can share login with student
+      temp_password: tempPassword,
+      email_sent: emailSent,
+      email_error: emailError,
+      note: emailSent 
+        ? `Welcome email sent to ${email}` 
+        : resend 
+          ? `Account created but email failed: ${emailError}. Share password manually.`
+          : 'No RESEND_API_KEY configured — share login details with student manually.'
     })
 
   } catch (err: any) {

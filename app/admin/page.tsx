@@ -122,18 +122,27 @@ const EXAMPLE_JSON = `{
   }
 }`
 
-// --- CLAUDE/OPENAI PROMPT ---
-const PROMPT_TEXT = `You are a Hebrew language teaching assistant. Analyze a lesson transcript and produce structured JSON for a student learning platform.
+// --- OPTIMIZED AI PROMPT ---
+const PROMPT_TEXT = `You are a language teaching assistant for The Jerusalem Bridge — a platform teaching Modern Hebrew, Biblical Hebrew, Yiddish, and Aramaic. Analyze a lesson transcript and produce structured JSON for a personalized student learning platform.
 
-CRITICAL RULES FOR HEBREW TEXT:
-1. ALL Hebrew words MUST include full nikud (vowel points). Never write Hebrew without nikud.
+CRITICAL RULES FOR HEBREW/YIDDISH TEXT:
+1. ALL Hebrew/Yiddish words MUST include full nikud (vowel points). NEVER write Hebrew without nikud.
 2. Use standard Israeli nikud: קָמָץ, פַּתָח, צֵירֵי, סֵגוֹל, חִירִיק, חוֹלָם, שׁוּרוּק/קוּבּוּץ, שְׁוָא.
 3. Include דָּגֵשׁ where applicable: בּ, כּ, פּ etc.
 4. Transliterations must match the nikud precisely.
+5. For Yiddish: use YIVO transliteration unless the dialect is specified.
+
+AUTO-DETECT FROM TRANSCRIPT:
+- Language: Detect if this is Modern Hebrew, Biblical Hebrew, Yiddish, or Aramaic based on the words and context used.
+- Student Level: Detect from how the student speaks:
+  * BEGINNER: Short answers, lots of errors, frequent L1 use, basic vocabulary
+  * INTERMEDIATE: Can form sentences but searches for words, uses L1 for complex ideas
+  * ADVANCED: Speaks mostly in target language, occasional errors, nuanced vocabulary
+- Native Language: Detect from any L1 usage (French, English, Russian, German, etc.)
 
 LESSON CONTEXT:
 - Student name: [STUDENT_NAME]
-- Student native language: [NATIVE_LANGUAGE]
+- Student native language: [NATIVE_LANGUAGE] 
 - Lesson number: [LESSON_NUMBER]
 - Date: [DATE]
 - Topic: [TOPIC]
@@ -146,69 +155,116 @@ OUTPUT FORMAT (strict JSON — no markdown, no code fences):
   "lesson_number": [number],
   "lesson_date": "[YYYY-MM-DD]",
   "topic_title": "[Short descriptive title]",
-  "summary": "[2-3 sentence summary]",
+  "summary": "[2-3 sentence summary of what happened in the lesson]",
+  "detected_language": "[Modern Hebrew|Biblical Hebrew|Yiddish|Aramaic]",
+  "detected_level": "[beginner|intermediate|advanced]",
 
   "vocabulary": [
     {
-      "front": "[Hebrew WITH FULL NIKUD]",
-      "back": "[English translation]",
+      "front": "[Target language WITH FULL NIKUD]",
+      "back": "[Translation in student's native language]",
       "transliteration": "[phonetic, matching nikud]",
-      "category": "[greetings|family|food|travel|verbs|adjectives|phrases|expressions|commands|encouragement|numbers|time|shopping|body|emotions|work|nature|religious]"
+      "category": "[greetings|family|food|travel|verbs|adjectives|phrases|expressions|idioms|commands|numbers|time|shopping|body|emotions|work|nature|religious|slang|connectors]",
+      "context": "[Short example sentence or context from the lesson]",
+      "difficulty": "[easy|medium|hard]"
     }
   ],
 
   "conversation_practice": {
-    "title": "[Scenario title from lesson content]",
-    "context": "[1-2 sentence setting]",
+    "title": "[Main scenario title based on lesson topic]",
+    "context": "[1-2 sentence setting that mirrors what was discussed in the lesson]",
     "dialogue": [
       {
-        "speaker": "[Teacher/Student/Vendor/Friend/etc.]",
-        "text_he": "[Hebrew WITH FULL NIKUD]",
-        "text_en": "[English translation]",
-        "type": "statement"
+        "speaker": "[Teacher/Student/Character name]",
+        "text_he": "[Target language WITH FULL NIKUD]",
+        "text_en": "[Translation]",
+        "type": "statement|question|response",
+        "hint": "[Optional hint for student turns, in their native language]"
       }
     ]
   },
 
   "additional_scenarios": [
     {
-      "title": "[Extra scenario title]",
-      "context": "[Setting]",
-      "dialogue": [...]
+      "title": "[Scenario using vocabulary from this lesson in a DIFFERENT context]",
+      "context": "[New situation that uses the same words/patterns]",
+      "level_note": "[Why this scenario fits the student's level]",
+      "dialogue": [
+        {
+          "speaker": "[Character]",
+          "text_he": "[WITH NIKUD]",
+          "text_en": "[Translation]",
+          "type": "statement|question|response",
+          "hint": "[Optional hint]"
+        }
+      ]
     }
   ],
 
   "grammar_points": [
     {
-      "pattern_he": "[Hebrew pattern with nikud]",
-      "pattern_en": "[English pattern]",
-      "explanation": "[Clear explanation]",
-      "examples": ["[example with nikud]", "[example with nikud]"]
+      "pattern_he": "[Pattern in target language with nikud]",
+      "pattern_en": "[Pattern in English/student's L1]",
+      "explanation": "[Clear, concise explanation]",
+      "examples": ["[example with nikud]", "[another example with nikud]"],
+      "common_errors": "[What students typically get wrong with this pattern]"
     }
   ],
 
-  "cultural_notes": ["[Cultural insight from the lesson]"],
+  "cultural_notes": ["[Cultural insight mentioned or relevant to the lesson]"],
 
-  "homework": ["[Practice task for student]"],
+  "homework": [
+    "[Specific, doable practice task — e.g. 'Write 3 sentences using קשה לי עם...' or 'Record yourself introducing your family']",
+    "[Another task]"
+  ],
 
   "analysis": {
-    "struggles": ["[Specific error with Hebrew example]"],
-    "strengths": ["[What student did well]"],
-    "recommendations": ["[Focus for next lesson]"],
+    "struggles": ["[Specific error with target language example — what the student said vs what's correct]"],
+    "strengths": ["[What student did well with specific examples]"],
+    "recommendations": ["[Concrete focus for next lesson]"],
     "talk_ratio": {"student": [0-100], "teacher": [0-100]},
-    "hebrew_percentage": [0-100],
-    "notes": "[Teacher notes on progress/personality]"
+    "target_language_percentage": [0-100],
+    "emotional_state": "[How the student seemed — frustrated, motivated, curious, tired, etc.]",
+    "notes": "[Teacher observations on progress, personality, what motivates this student]"
   }
 }
 
-IMPORTANT:
-- Extract EVERY Hebrew word/phrase taught or practiced (15-40 items per lesson)
-- Create scenarios that reflect what was ACTUALLY discussed, not generic dialogues
-- Capture grammar patterns even if briefly explained
-- Include cultural context the teacher mentioned
-- Be generous with vocabulary — include phrases, expressions, and incidental words
+CRITICAL REQUIREMENTS:
+1. VOCABULARY: Extract 15-40 items. Include:
+   - Every new word explicitly taught
+   - Words the student struggled to remember
+   - Phrases and expressions (not just single words)
+   - Idioms or slang mentioned
+   - Words the student asked about or used their L1 for
+   
+2. SCENARIOS: Generate AT LEAST 3 scenarios total (1 main + 2 additional). Rules:
+   - Main scenario: Directly mirrors the lesson topic and conversation
+   - Additional scenarios: Use the SAME vocabulary in DIFFERENT real-life contexts
+   - For BEGINNERS: Short dialogues (4-6 turns), simple vocabulary, lots of hints
+   - For INTERMEDIATE: Medium dialogues (6-10 turns), some new vocab mixed in
+   - For ADVANCED: Longer dialogues (8-14 turns), nuanced situations, minimal hints
+   - Make scenarios feel REAL — Israeli/Jewish cultural contexts (shuk, Shabbat dinner, doctor visit, work meeting, family gathering)
+   - Include at least one scenario that practices the student's specific weak points
+   
+3. HOMEWORK: Generate 2-4 specific tasks:
+   - At least one writing task
+   - At least one speaking/recording task  
+   - Tasks should use vocabulary from THIS lesson
+   - Tasks should be completable in 10-15 minutes total
 
-Return ONLY the JSON object.`
+4. ANALYSIS: Be specific and honest:
+   - Quote actual errors from the transcript
+   - Note exact moments of frustration or confidence
+   - Talk ratio should reflect actual speaking time
+   - Emotional state helps the teacher plan the next lesson
+
+5. For YIDDISH lessons:
+   - Note which dialect is being taught (Lithuanian/Polish/Hasidic)
+   - Include loshn-koydesh (Hebrew-Aramaic component) words separately
+   - Transliterate using YIVO standard unless dialect-specific
+   - Cultural notes should reflect Yiddish-specific contexts
+
+Return ONLY the JSON object. No markdown, no explanation, no code fences.`
 
 export default function AdminPage() {
   const [students, setStudents] = useState<Student[]>([])
@@ -227,8 +283,16 @@ export default function AdminPage() {
   const [newStudentName, setNewStudentName] = useState('')
   const [newStudentLang, setNewStudentLang] = useState('en')
   const [newStudentGoals, setNewStudentGoals] = useState('')
+  
+  // PATCH 1: Add target_language state
+  const [newStudentTargetLang, setNewStudentTargetLang] = useState('Modern Hebrew')
+  
   const [registerResult, setRegisterResult] = useState<string | null>(null)
   const [lessons, setLessons] = useState<any[]>([])
+
+  // PATCH 2: Add lesson-ready email state
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailResult, setEmailResult] = useState<string | null>(null)
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -381,15 +445,69 @@ export default function AdminPage() {
     if (!newStudentEmail || !newStudentName) { setError('Name and email required'); return }
     setLoading(true)
     try {
-      const res = await fetch('/api/register-student', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: newStudentEmail, student_name: newStudentName, native_language: newStudentLang, learning_goals: newStudentGoals }) })
+      // PATCH 3: Update handleRegister to include target_language + email
+      const res = await fetch('/api/register-student', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          email: newStudentEmail, 
+          student_name: newStudentName, 
+          native_language: newStudentLang, 
+          learning_goals: newStudentGoals,
+          target_language: newStudentTargetLang,
+          send_welcome_email: true
+        }) 
+      })
       const data = await res.json()
       if (data.success) {
-        setRegisterResult(`✅ ${newStudentName} registered!${data.temp_password ? ` Temp: ${data.temp_password}` : ''}`)
+        // PATCH 4: Update the register success message
+        setRegisterResult(
+          `✅ ${newStudentName} registered!` + 
+          (data.temp_password ? ` Password: ${data.temp_password}` : '') +
+          (data.email_sent ? ` ✉️ Welcome email sent!` : ` ⚠️ ${data.note || 'Email not sent — share login manually'}`)
+        )
         setNewStudentEmail(''); setNewStudentName(''); setNewStudentGoals(''); loadStudents()
       } else setError(data.error || 'Failed')
     } catch (err: any) { setError(err.message) }
     finally { setLoading(false) }
+  }
+
+  // PATCH 5: Add sendLessonReadyEmail function
+  async function sendLessonReadyEmail() {
+    if (!selectedStudent || !parsedData) return
+    const student = students.find(s => s.user_id === selectedStudent)
+    if (!student) return
+    
+    setEmailSending(true)
+    setEmailResult(null)
+    
+    try {
+      // Get student email from Supabase auth
+      const res = await fetch('/api/send-lesson-ready', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student_user_id: student.user_id,
+          student_name: student.student_name,
+          student_email: '', // Backend handles lookup
+          lesson_number: parsedData.lesson_number,
+          topic_title: parsedData.topic_title,
+          word_count: parsedData.vocabulary?.length || 0,
+          scenario_count: (parsedData.conversation_practice ? 1 : 0) + (parsedData.additional_scenarios?.length || 0),
+          homework_items: parsedData.homework,
+        })
+      })
+      const data = await res.json()
+      if (data.success) {
+        setEmailResult('✉️ Lesson ready email sent!')
+      } else {
+        setEmailResult(`⚠️ Email failed: ${data.error}`)
+      }
+    } catch (err: any) {
+      setEmailResult(`⚠️ ${err.message}`)
+    } finally {
+      setEmailSending(false)
+    }
   }
 
   // --- STYLES ---
@@ -456,7 +574,37 @@ export default function AdminPage() {
 
       <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 32px' }}>
         {error && <div style={{ background: '#FFF7ED', border: '1px solid #FDBA74', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', color: '#9A3412', fontSize: '14px', fontWeight: 600 }}>⚠️ {error}</div>}
-        {result && <div style={{ background: '#D1FAE5', border: '1px solid #A7F3D0', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', color: '#065F46', fontSize: '14px', fontWeight: 600 }}>✅ {result.message}</div>}
+        {result && (
+          <div>
+            <div style={{ background: '#D1FAE5', border: '1px solid #A7F3D0', borderRadius: '12px', padding: '12px 16px', marginBottom: '16px', color: '#065F46', fontSize: '14px', fontWeight: 600 }}>✅ {result.message}</div>
+            
+            {/* PATCH 7: Add "Send Lesson Ready Email" button after import success */}
+            {result.success && (
+              <div style={{ background: 'white', border: '1px solid #E5E5E0', borderRadius: '12px', padding: '16px', marginBottom: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <p style={{ fontSize: '14px', fontWeight: 700, color: '#1A1A2E', margin: 0 }}>📬 Notify student?</p>
+                  <p style={{ fontSize: '12px', color: '#9CA3AF', margin: '4px 0 0' }}>Send an email telling them their lesson materials are ready</p>
+                </div>
+                <button 
+                  onClick={sendLessonReadyEmail}
+                  disabled={emailSending}
+                  style={{
+                    padding: '10px 20px',
+                    background: emailSending ? '#E5E5E0' : '#1E3A5F',
+                    color: emailSending ? '#9CA3AF' : 'white',
+                    border: 'none',
+                    borderRadius: '10px',
+                    fontWeight: 700,
+                    fontSize: '13px',
+                    cursor: emailSending ? 'wait' : 'pointer',
+                  }}>
+                  {emailSending ? 'Sending...' : '✉️ Send Lesson Ready Email'}
+                </button>
+                {emailResult && <span style={{ fontSize: '12px', marginLeft: '12px' }}>{emailResult}</span>}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ═══════════════ IMPORT TAB ═══════════════ */}
         {activeTab === 'import' && (
@@ -703,6 +851,18 @@ export default function AdminPage() {
                 <div><label style={S.label}>Language</label><select value={newStudentLang} onChange={e => setNewStudentLang(e.target.value)} style={S.input}><option value="en">English</option><option value="fr">French</option><option value="ru">Russian</option><option value="es">Spanish</option><option value="yi">Yiddish</option></select></div>
                 <div><label style={S.label}>Goals</label><input value={newStudentGoals} onChange={e => setNewStudentGoals(e.target.value)} placeholder="Torah reading, conversation..." style={S.input} /></div>
               </div>
+              
+              {/* PATCH 6: Add target language dropdown to Register tab UI */}
+              <div>
+                <label style={S.label}>Learning Language</label>
+                <select value={newStudentTargetLang} onChange={e => setNewStudentTargetLang(e.target.value)} style={S.input}>
+                  <option value="Modern Hebrew">🗣️ Modern Hebrew</option>
+                  <option value="Biblical Hebrew">📜 Biblical Hebrew</option>
+                  <option value="Yiddish">🕎 Yiddish</option>
+                  <option value="Aramaic">🏛️ Aramaic</option>
+                </select>
+              </div>
+
               <button onClick={handleRegister} disabled={loading || !newStudentName || !newStudentEmail}
                 style={{ padding: '14px', border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 700,
                   background: (!newStudentName || !newStudentEmail) ? '#E5E5E0' : 'linear-gradient(135deg, #1E3A5F, #2D5F8A)',

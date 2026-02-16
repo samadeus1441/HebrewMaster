@@ -1,20 +1,42 @@
+// app/api/tts/route.ts
+// ═══════════════════════════════════════════════════════════
+// TTS PROXY — Google Translate TTS (fallback for Web Speech API)
+// Primary TTS is now in the browser via Web Speech API
+// This route is only called as a fallback
+// ═══════════════════════════════════════════════════════════
+
 import { NextResponse } from 'next/server';
 
 export async function POST(req: Request) {
   try {
-    const { text } = await req.json();
+    const { text, lang = 'he' } = await req.json();
 
     if (!text) {
       return NextResponse.json({ error: "Missing text" }, { status: 400 });
     }
 
-    // Use Google Translate TTS for Hebrew
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=he&client=tw-ob&q=${encodeURIComponent(text)}`;
+    // Limit text length for TTS
+    const trimmed = text.slice(0, 200);
+
+    // Map language codes
+    const ttsLang = lang === 'yi' ? 'he' : lang === 'ar' ? 'he' : 'he';
+
+    // Google Translate TTS endpoint
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=${ttsLang}&client=tw-ob&q=${encodeURIComponent(trimmed)}`;
     
-    const response = await fetch(url);
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Referer': 'https://translate.google.com/',
+      }
+    });
     
     if (!response.ok) {
-      return NextResponse.json({ error: "TTS failed" }, { status: 500 });
+      // If Google blocks us, return a helpful error
+      return NextResponse.json(
+        { error: "Google TTS unavailable. Use browser speech synthesis instead." }, 
+        { status: 503 }
+      );
     }
 
     const audioBuffer = await response.arrayBuffer();
@@ -23,6 +45,7 @@ export async function POST(req: Request) {
       headers: {
         'Content-Type': 'audio/mpeg',
         'Content-Length': audioBuffer.byteLength.toString(),
+        'Cache-Control': 'public, max-age=86400', // Cache for 24h
       },
     });
 

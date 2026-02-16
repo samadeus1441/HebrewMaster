@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
@@ -14,9 +15,9 @@ import {
   XMarkIcon,
   ChatBubbleLeftRightIcon,
 } from '@heroicons/react/24/outline';
-import { useState, useEffect } from 'react';
 import { useLanguage } from '@/app/context/LanguageContext';
 import { getLevelFromXP } from '@/hooks/useGameification';
+import OnboardingTour from '@/components/OnboardingTour';
 
 export const dynamic = 'force-dynamic';
 
@@ -61,14 +62,21 @@ export default function DashboardLayout({
 
   const levelInfo = getLevelFromXP(userXP);
 
+  // PATCH 2: Complete links array with new languages and tour IDs
   const links = [
-    { name: '🏠 ' + t('nav.dashboard'), href: '/dashboard', match: (p: string) => p === '/dashboard' },
-    { name: '📚 My Lessons', href: '/dashboard/lessons', match: (p: string) => p === '/dashboard/lessons' },
-    { name: '🃏 ' + t('nav.flashcards'), href: '/dashboard/practice', match: (p: string) => p === '/dashboard/practice' },
-    { name: '🎯 ' + t('nav.quiz'), href: '/dashboard/quiz', match: (p: string) => p === '/dashboard/quiz' },
-    { name: '💬 Conversations', href: '/dashboard/conversations', match: (p: string) => p === '/dashboard/conversations' },
-    { name: '🔤 ' + t('nav.alphabet'), href: '/dashboard/alphabet', match: (p: string) => p === '/dashboard/alphabet' },
-    { name: '✡️ ' + t('nav.nikud'), href: '/dashboard/nikud', match: (p: string) => p === '/dashboard/nikud' },
+    { name: '🏠 ' + t('nav.dashboard'), href: '/dashboard', match: (p: string) => p === '/dashboard', tour: 'welcome' },
+    { name: '📚 My Lessons', href: '/dashboard/lessons', match: (p: string) => p.startsWith('/dashboard/lessons'), tour: 'lessons' },
+    { name: '🃏 ' + t('nav.flashcards'), href: '/dashboard/practice', match: (p: string) => p === '/dashboard/practice', tour: 'flashcards' },
+    { name: '🎯 ' + t('nav.quiz'), href: '/dashboard/quiz', match: (p: string) => p === '/dashboard/quiz', tour: 'quiz' },
+    { name: '💬 Conversations', href: '/dashboard/conversations', match: (p: string) => p === '/dashboard/conversations', tour: 'conversations' },
+    { name: '📖 Reading', href: '/dashboard/reading', match: (p: string) => p === '/dashboard/reading', tour: 'reading' },
+    { name: '🔤 ' + t('nav.alphabet'), href: '/dashboard/alphabet', match: (p: string) => p === '/dashboard/alphabet', tour: 'alphabet' },
+    { name: '✡️ ' + t('nav.nikud'), href: '/dashboard/nikud', match: (p: string) => p === '/dashboard/nikud', tour: 'nikud' },
+    { name: '🏗️ Conjugation', href: '/dashboard/conjugation', match: (p: string) => p === '/dashboard/conjugation', tour: 'conjugation' },
+    { name: '🌳 Roots', href: '/dashboard/roots', match: (p: string) => p === '/dashboard/roots', tour: 'roots' },
+    { name: '📝 Homework', href: '/dashboard/homework', match: (p: string) => p === '/dashboard/homework', tour: 'homework' },
+    { name: '📜 Biblical Hebrew', href: '/biblical-hebrew', match: (p: string) => p === '/biblical-hebrew', tour: 'biblical' },
+    { name: '🏺 Aramaic', href: '/aramaic', match: (p: string) => p === '/aramaic', tour: 'aramaic' },
   ];
 
   const handleLogout = async () => {
@@ -184,6 +192,7 @@ export default function DashboardLayout({
                 <Link
                   key={link.href}
                   href={link.href}
+                  data-tour={link.tour} // PATCH 3: Attribute added
                   onClick={() => setIsMobileMenuOpen(false)}
                   style={{
                     display: 'flex',
@@ -269,6 +278,9 @@ export default function DashboardLayout({
       <main className="flex-1 overflow-auto" style={{ background: 'var(--hm-bg)' }}>
         {children}
       </main>
+
+      {/* PATCH 4: Component added */}
+      <OnboardingTour />
     </div>
   );
 }

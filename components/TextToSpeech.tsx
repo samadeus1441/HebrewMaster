@@ -1,12 +1,6 @@
-// components/TextToSpeech.tsx
-// ═══════════════════════════════════════════════════════════
-// FIXED TTS — Uses Web Speech API (works in Chrome desktop)
-// Falls back to Google Translate proxy if browser doesn't support Hebrew
-// ═══════════════════════════════════════════════════════════
-
 'use client'
 
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 interface AudioPlayerProps {
   text: string
@@ -21,28 +15,33 @@ export default function AudioPlayer({ text, autoPlay = false, className = '', la
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
 
-  // Check if Web Speech API supports Hebrew
-  const canUseSpeechSynthesis = useCallback(() => {
-    if (typeof window === 'undefined' || !window.speechSynthesis) return false
-    const voices = window.speechSynthesis.getVoices()
-    // Hebrew voice available, or we'll try anyway (Chrome loads voices lazily)
-    return voices.length === 0 || voices.some(v => v.lang.startsWith('he'))
+  // CRITICAL FIX: Chrome on Windows needs to "kickstart" the voices or they stay empty
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.speechSynthesis) {
+      window.speechSynthesis.getVoices()
+    }
   }, [])
 
-  // Method 1: Web Speech API (works in Chrome, Edge, Safari)
   const playSpeechSynthesis = (textToSpeak: string): boolean => {
     if (typeof window === 'undefined' || !window.speechSynthesis) return false
 
     try {
-      // Cancel any ongoing speech
-      window.speechSynthesis.cancel()
+      // 1. CLEAR PREVIOUS: Crucial for Windows Chrome to reset the engine
+      window.speechSynthesis.pause();
+      window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(textToSpeak)
-      utterance.lang = lang === 'yi' ? 'he' : lang === 'ar' ? 'he' : 'he-IL'
-      utterance.rate = 0.85  // Slightly slower for learning
+      
+      // Map languages
+      if (lang === 'yi' || lang === 'ar') {
+        utterance.lang = 'he-IL' // Use Hebrew engine for Yiddish/Aramaic fallback
+      } else {
+        utterance.lang = 'he-IL'
+      }
+      
+      utterance.rate = 0.85
       utterance.pitch = 1
 
-      // Try to find a Hebrew voice
       const voices = window.speechSynthesis.getVoices()
       const hebrewVoice = voices.find(v => v.lang.startsWith('he'))
       if (hebrewVoice) utterance.voice = hebrewVoice
@@ -56,26 +55,28 @@ export default function AudioPlayer({ text, autoPlay = false, className = '', la
         setIsLoading(false)
       }
       utterance.onerror = (e) => {
-        console.warn('SpeechSynthesis error:', e.error)
+        console.error('TTS Engine Error:', e)
         setIsPlaying(false)
         setIsLoading(false)
-        // If speech synthesis fails, try the server proxy
+        // If the browser engine fails, use your API proxy fallback
         playServerProxy(textToSpeak)
       }
 
       utteranceRef.current = utterance
+      
+      // 2. THE WINDOWS WAKE-UP: Resumes the engine in case it was stuck in a paused state
+      window.speechSynthesis.resume();
       window.speechSynthesis.speak(utterance)
       return true
-    } catch {
+    } catch (err) {
+      console.error('SpeechSynthesis catch block:', err)
       return false
     }
   }
 
-  // Method 2: Server proxy (Google Translate TTS) — fallback
   const playServerProxy = async (textToSpeak: string) => {
     try {
       setIsLoading(true)
-
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current = null
@@ -100,18 +101,16 @@ export default function AudioPlayer({ text, autoPlay = false, className = '', la
 
       await audio.play()
     } catch (error) {
-      console.error('Server TTS also failed:', error)
+      console.error('Server TTS fallback failed:', error)
       setIsLoading(false)
       setIsPlaying(false)
     }
   }
 
   const handleStop = () => {
-    // Stop Speech Synthesis
     if (typeof window !== 'undefined' && window.speechSynthesis) {
       window.speechSynthesis.cancel()
     }
-    // Stop Audio element
     if (audioRef.current) {
       audioRef.current.pause()
       audioRef.current.currentTime = 0
@@ -126,33 +125,24 @@ export default function AudioPlayer({ text, autoPlay = false, className = '', la
 
     setIsLoading(true)
 
-    // Try Speech Synthesis first (fast, no network needed)
-    // Chrome on desktop needs voices to be loaded first
     if (typeof window !== 'undefined' && window.speechSynthesis) {
-      // Ensure voices are loaded
       const voices = window.speechSynthesis.getVoices()
       if (voices.length > 0) {
         if (playSpeechSynthesis(text)) return
       } else {
-        // Chrome loads voices async — wait for them
+        // Handle lazy loading of voices in Chrome
         window.speechSynthesis.onvoiceschanged = () => {
           if (playSpeechSynthesis(text)) return
-          // If still fails, use server
           playServerProxy(text)
         }
-        // Set a timeout in case onvoiceschanged never fires
         setTimeout(() => {
           if (!isPlaying) {
-            if (!playSpeechSynthesis(text)) {
-              playServerProxy(text)
-            }
+            if (!playSpeechSynthesis(text)) playServerProxy(text)
           }
-        }, 300)
+        }, 500)
         return
       }
     }
-
-    // Fallback to server proxy
     playServerProxy(text)
   }
 

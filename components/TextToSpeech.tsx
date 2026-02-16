@@ -13,43 +13,44 @@ export default function AudioPlayer({ text, className = '', lang = 'he' }: Audio
   const [isLoading, setIsLoading] = useState(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
-  const handleStop = () => {
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current.currentTime = 0
-    }
-    setIsPlaying(false)
-    setIsLoading(false)
-  }
-
   const handleClick = async () => {
-    // 1. If already playing, stop it.
-    if (isPlaying) {
-      handleStop()
-      return
-    }
-
     setIsLoading(true)
-
+    
     try {
-      // 2. FORCE SERVER API: Ignore the browser voices. Just get the MP3.
-      if (audioRef.current) {
-        audioRef.current.pause()
-        audioRef.current = null
-      }
-
+      // 1. Try to fetch the audio file
       const response = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, lang }),
       })
 
-      if (!response.ok) throw new Error('TTS API failed')
+      // 2. Alert if the SERVER fails (e.g. 500 or 404)
+      if (!response.ok) {
+        alert(`SERVER ERROR: ${response.status} ${response.statusText}`)
+        setIsLoading(false)
+        return
+      }
 
+      // 3. Process the file
       const audioBlob = await response.blob()
+      
+      // Check if the file is empty
+      if (audioBlob.size < 100) {
+        alert(`FILE ERROR: Audio file is too small (${audioBlob.size} bytes).`)
+        setIsLoading(false)
+        return
+      }
+
       const audioUrl = URL.createObjectURL(audioBlob)
       const audio = new Audio(audioUrl)
       audioRef.current = audio
+
+      // 4. Alert if the BROWSER refuses to play it
+      audio.onerror = (e) => {
+        const error = audio.error
+        alert(`PLAYBACK ERROR: Code ${error?.code} - ${error?.message || 'Unknown error'}`)
+        setIsLoading(false)
+      }
 
       audio.onplay = () => {
         setIsPlaying(true)
@@ -58,21 +59,16 @@ export default function AudioPlayer({ text, className = '', lang = 'he' }: Audio
       
       audio.onended = () => {
         setIsPlaying(false)
-        setIsLoading(false)
         URL.revokeObjectURL(audioUrl)
       }
 
-      audio.onerror = () => {
-        console.error('Audio file failed to load')
-        setIsPlaying(false)
+      await audio.play().catch(e => {
+        alert(`AUTOPLAY BLOCK: ${e.message}`)
         setIsLoading(false)
-      }
-      
-      await audio.play()
+      })
 
-    } catch (error) {
-      console.error('Server TTS failed:', error)
-      setIsPlaying(false)
+    } catch (error: any) {
+      alert(`NETWORK ERROR: ${error.message}`)
       setIsLoading(false)
     }
   }
@@ -80,15 +76,13 @@ export default function AudioPlayer({ text, className = '', lang = 'he' }: Audio
   return (
     <button
       onClick={handleClick}
-      disabled={isLoading}
       className={className}
       style={{
         background: 'none',
         border: 'none',
-        cursor: isLoading ? 'wait' : 'pointer',
+        cursor: 'pointer',
         padding: '4px',
         fontSize: '18px',
-        opacity: isLoading ? 0.5 : 1,
       }}
     >
       {isLoading ? '⏳' : isPlaying ? '⏹️' : '🔊'}
